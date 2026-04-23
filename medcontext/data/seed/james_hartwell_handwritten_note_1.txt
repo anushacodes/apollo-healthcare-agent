@@ -1,0 +1,42 @@
+============================================================
+  DOCLING EXTRACTION OUTPUT — SOURCE: james_hartwell_note_1.jpg
+  FORMAT: LightOnOCR-2-1B  (handwritten GP note, A5 paper, blue biro)
+  TEXT VOLUME: 612 chars  →  ⚠ OCR fallback applied
+  CONFIDENCE: 0.71
+============================================================
+
+[PAGE 1 — single page]
+
+Pt: J.  Hartwe11  DOB 14/3/66
+Date: 09 Oct 2023
+
+c/o  fatigue, joint  pains — worsening  x3  wks
+Also  c/o  dry  eyes  + mouth  — longstanding  ?Sjogrens
+Seen  by  Dr  K  prev  — on  HCQ  200mg  BD
+
+O/E:
+Temp  37.9   BP  138/86   HR  92   Sats  98%  RA
+Malar  rash  present  (butterfly  dist  across  cheeks)
+Hands: bilat  PIP + MCP  tenderness,  no  synovitis
+Chest:  dull  L  base — ?effusion
+Abdo: mild  epigastric  tenderness,  no  organomegaly
+
+Urine dipstick: Prot +++  Blood ++  Leuk neg
+
+Imp: SLE flare ?  Renal involvement — send  MSU  +  urgent urine PCR
+Refer  urgently  to  Rheum +  Renal
+
+Rx:
+→ Increase  pred  to  40mg  od  (was  on  10mg)
+→ Continue  HCQ  200mg  BD
+→  Refer  to  hosp  today  if  unwe11
+
+Signed:  Dr  A.  Patel  MRCGP
+[illegible smudge — possibly "9/10/23"]
+
+--- [end of handwritten content] ---
+
+[OCR NOTE: Several words partially obscured by ink bleed. 'unwell' parsed as 'unwe11'. 
+Character 'l' in 'Hartwell' parsed as digit '1' in two locations. 
+Confidence for temperature reading: 0.83. 
+Bottom margin text: illegible.]

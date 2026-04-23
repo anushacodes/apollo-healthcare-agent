@@ -1,0 +1,234 @@
+============================================================
+  WHISPER TRANSCRIPTION OUTPUT — SOURCE: james_hartwell_transcript.m4a
+  MODEL: openai/whisper-base
+  DURATION: 14m 32s
+  LANGUAGE: en (confidence 0.99)
+  FILE HASH: sha256:a3f7c2d8e491b0c56f83a1d4e729b3c1...
+============================================================
+
+[00:00:04]
+Dr Okafor: Good morning, James. Come in, take a seat. Good to see you. How are
+you feeling compared to when we last spoke — back in October when you were in hospital?
+
+[00:00:14]
+James Hartwell: Morning, Professor. Um — yeah, I'm honestly a lot better than I
+was. The chest pain is gone, which is the main thing. I was really scared when that
+started, you know? I thought it was a heart attack.
+
+[00:00:26]
+Dr Okafor: Yes, understandably alarming. That was the pericarditis — inflammation
+around the heart — which is something that can happen with lupus. The good news is
+it's responded very well to treatment. The echo we repeated last week shows the
+fluid around the heart is settling.
+
+[00:00:43]
+James Hartwell: Yeah, that's a relief. My wife was beside herself. Um, I'm still
+tired, but it's — it's manageable tired, not the bone-tired I had in September
+and October. And my joints are better. I'm still stiff in the mornings but
+maybe half an hour rather than three hours like it was.
+
+[00:01:03]
+Dr Okafor: That's a meaningful improvement. And the urine — any changes you've
+noticed? Frothiness, colour?
+
+[00:01:09]
+James Hartwell: It's — yeah it's less frothy. It was like, genuinely bubbly in
+October. That freaked me out. Now it looks more normal. Still occasionally a bit,
+but much less.
+
+[00:01:19]
+Dr Okafor: Good. The protein in the urine is coming down — it was very high in
+October and it's about a fifth of what it was now. Still elevated, not normal,
+but a big improvement. Your kidneys are responding. I want to talk about your
+medications today — are you managing to take them all?
+
+[00:01:38]
+James Hartwell: Mostly yeah. The — the prednisone I take every morning. The
+mycophenolate I take twice a day, with food. The hydroxychloroquine twice a day.
+Um, the warfarin every evening. And the omeprazole and the calcium tablets.
+
+[00:01:54]
+Dr Okafor: That's a lot. Are you using a pill box or something to keep track?
+
+[00:01:58]
+James Hartwell: My wife sorts it out actually [laughs]. I probably wouldn't
+manage without her.
+
+[00:02:03]
+Dr Okafor: No shame in that — it's a complex regimen. One thing I want to flag
+is the warfarin. You're on that because your blood has a higher risk of clotting —
+from what's called antiphospholipid syndrome, which is connected to your lupus.
+It's really important you don't stop that, and that you get your INR checked
+regularly. It was 2.8 last week which is perfect.
+
+[00:02:26]
+James Hartwell: Yeah the nurse explained. I've got the yellow booklet. I go every
+four weeks to the GP surgery for the blood test.
+
+[00:02:33]
+Dr Okafor: Good. Now — something I wanted to raise. Your fasting blood sugar is
+a little elevated. Not diabetic, but heading in that direction. This is very common
+with the steroid dose you're on. We're going to taper the steroids down gradually,
+which should help. But I'd like you to watch your diet in the meantime, particularly
+sugar and refined carbohydrates. I'm referring you to a dietitian.
+
+[00:02:58]
+James Hartwell: Yeah I've noticed I'm eating more. And I've put on weight. My
+trousers don't fit. Four kilos since October.
+
+[00:03:05]
+Dr Okafor: Yes, steroids do that — they increase appetite and cause fluid retention.
+It should improve as we reduce the dose. We're going to drop you from 60mg to 50mg
+starting next week, then every two weeks we'll come down by 10mg, watching your
+kidney function and inflammatory markers closely.
+
+[00:03:24]
+James Hartwell: How long will I be on the steroids?
+
+[00:03:27]
+Dr Okafor: Ideally we get you down to 5 or 10mg within four to six months — and
+the mycophenolate should help us do that. Long-term, we may also add a drug called
+belimumab — a newer biological treatment — which can help control lupus and reduce
+how much steroid you need. We'll discuss that at your next visit depending on how
+things are going.
+
+[00:03:50]
+James Hartwell: Okay. Um — I had a question. I've been reading online — is
+there any link between lupus and... I read about the kidneys getting permanently
+damaged?
+
+[00:04:01]
+Dr Okafor: That's a very valid concern. Lupus nephritis can cause permanent kidney
+damage if it's not treated promptly and well — which is exactly why we were
+aggressive with the treatment in October. The biopsy showed Class III nephritis,
+which is significant but absolutely treatable. The fact that your creatinine has
+come down from 198 to 142 in six weeks is genuinely encouraging. Our goal is to
+prevent it going any higher, preserve your kidney function, and hopefully get you
+back into normal range over the coming months.
+
+[00:04:38]
+James Hartwell: What happens if it doesn't improve?
+
+[00:04:41]
+Dr Okafor: Then we would consider adding additional treatments — there are newer
+options including voclosporin and belimumab specifically licensed for lupus
+nephritis. In the very long term, if the kidneys were to fail — which is not where
+we think you're headed — there would be dialysis or transplant. But that is not
+the trajectory we're on. You're responding.
+
+[00:05:04]
+James Hartwell: Okay. That's — that's reassuring. Um, the eyes. I have really
+dry eyes. And my mouth is dry as well.
+
+[00:05:12]
+Dr Okafor: That's the secondary Sjögren's syndrome — it's another immune-related
+condition that often overlaps with lupus. Are you using the drops I prescribed?
+
+[00:05:20]
+James Hartwell: The hypromellose ones, yeah. They help, but I have to use them like
+ten times a day or my eyes feel like sandpaper.
+
+[00:05:27]
+Dr Okafor: That's not unusual. I've referred you to the ophthalmologist — partly
+for the dry eyes and partly because we need to check the hydroxychloroquine isn't
+affecting your retinas. That drug is very safe, but after five or more years we check
+to make sure it isn't accumulating. That appointment is the 15th of December.
+
+[00:05:47]
+James Hartwell: Right. And what about — I still smoke. Five a day. I know I should
+stop.
+
+[00:05:53]
+Dr Okafor: I'm glad you brought that up. Smoking is particularly harmful with lupus
+and antiphospholipid syndrome — it increases the clot risk significantly. It also
+interferes with hydroxychloroquine, making it less effective. I strongly encourage
+you to stop. I can refer you to the smoking cessation service — they have a very
+good programme and there are medications that can help.
+
+[00:06:15]
+James Hartwell: Yeah. I'll — I'll try. My wife's been on at me about it [laughs].
+
+[00:06:20]
+Dr Okafor: Good. Between the two of us, I hope we can convince you. Now —
+any other symptoms? Headaches, visual changes, seizures, memory problems?
+
+[00:06:30]
+James Hartwell: I do get headaches. Pretty regularly actually. I hadn't mentioned them.
+
+[00:06:36]
+Dr Okafor: How long have those been happening?
+
+[00:06:38]
+James Hartwell: Um, probably three months? Maybe longer. Sort of — dull, behind
+the eyes. Not migraine-level, but persistent.
+
+[00:06:46]
+Dr Okafor: Lupus can occasionally affect the nervous system — what we call
+neuropsychiatric lupus — and headaches can be a feature. Given your antiphospholipid
+syndrome, we should also make sure there's nothing vascular going on. I'm going
+to arrange an MRI of your brain and a neurology review. Are you on aspirin?
+
+[00:07:04]
+James Hartwell: No, just the warfarin.
+
+[00:07:06]
+Dr Okafor: Okay, the warfarin should be sufficient — we don't want to add aspirin
+on top generally. But let's get the MRI done and see what it shows. The headaches —
+any worse at particular times? Morning, evening?
+
+[00:07:18]
+James Hartwell: Mornings tend to be worse. And when I'm stressed, which has been
+quite a lot lately.
+
+[00:07:24]
+Dr Okafor: Understandable, given everything. Stress can trigger lupus flares too —
+it's a vicious cycle. We'll see what the MRI shows.
+
+[00:07:32]
+James Hartwell: One more thing — um, my GP mentioned something about bone density?
+
+[00:07:37]
+Dr Okafor: Yes — long-term steroids can cause bone thinning. I'm arranging a
+DEXA scan for you, which measures bone density. And you should be on vitamin D and
+calcium supplements, which you are. If the DEXA scan shows significant reduction,
+we might need to add a bisphosphonate — a medication to protect the bones.
+
+[00:07:57]
+James Hartwell: Alright. Um — is this going to get better? Long term?
+
+[00:08:02]
+Dr Okafor: Lupus is a chronic condition — it doesn't go away. But it is manageable.
+Many people with lupus live full, normal lives with the right treatment. Our goal
+is remission — where the disease is quiet, your organs are protected, and your
+quality of life is good. We're not there yet, but you're heading in the right
+direction. You've responded well to this very aggressive treatment. That's a good sign.
+
+[00:08:28]
+James Hartwell: Thank you. That helps to hear it.
+
+[00:08:31]
+Dr Okafor: Of course. Let me just summarise what we're doing today: increasing your
+mycophenolate to one-and-a-half grams twice a day. Starting the steroid taper next
+week. Referring you to dietitian for the blood sugar and weight. Arranging MRI brain
+and neurology referral for the headaches. DEXA scan for bone density. Ophthalmology
+on the 15th of December. And I want to see you back here in six to eight weeks — so
+January, second or third week.
+
+[00:09:01]
+James Hartwell: Okay, that all sounds good. Thank you professor.
+
+[00:09:04]
+Dr Okafor: Thank you, James. Look after yourself. Take care of those medications
+and — seriously — think about the smoking. We'll get there.
+
+[00:09:11]
+[sound of chair, door opening, footsteps receding]
+
+[00:09:18]
+[recording ends]
+
+--- [END OF TRANSCRIPT] ---
+
+[WHISPER NOTE: Minor disfluencies ('um', 'uh') preserved as spoken.
+One segment at [06:15] partially overlapping with external sound — quality degraded,
+reconstructed from context. Speaker labels assigned heuristically.]

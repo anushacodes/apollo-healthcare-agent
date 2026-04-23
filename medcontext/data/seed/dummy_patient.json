@@ -1,0 +1,353 @@
+{
+  "_comment": "Pre-processed PatientSummary for frontend demo mode. Load with 'Try Demo Patient' button. No file upload required.",
+  "patient_id": "demo-jh-001",
+  "patient": {
+    "name": "James Hartwell",
+    "dob": "1966-03-14",
+    "mrn": "JH-001",
+    "age": 58
+  },
+  "summary": {
+    "patient_id": "demo-jh-001",
+    "generated_at": "2023-11-22T14:30:00Z",
+    "summary_narrative": "Mr James Hartwell is a 58-year-old man with a six-year history of Systemic Lupus Erythematosus (SLE) complicated by Class III lupus nephritis, recurrent pericarditis/serositis, secondary Sjögren's syndrome, autoimmune haemolytic anaemia (AIHA), and antiphospholipid syndrome (APS). He was admitted acutely in October 2023 with a major flare involving severe renal impairment (creatinine 198 µmol/L, PCR 487 mg/mmol), pericardial effusion, and falling haemoglobin (9.2 g/dL). He received IV methylprednisolone and commenced mycophenolate mofetil. At November 2023 review his renal function has improved significantly (creatinine 142, eGFR 49, PCR 88 mg/mmol), though ongoing monitoring and gradual steroid tapering is planned.",
+    "diagnoses": [
+      {
+        "name": "Systemic Lupus Erythematosus (SLE)",
+        "icd_code": "M32.9",
+        "date_first_noted": "2017",
+        "status": "active"
+      },
+      {
+        "name": "Lupus Nephritis Class III (focal proliferative)",
+        "icd_code": "M32.14",
+        "date_first_noted": "2023-10-14",
+        "status": "active — partial response to treatment"
+      },
+      {
+        "name": "Lupus Pericarditis / Serositis",
+        "icd_code": "M32.12",
+        "date_first_noted": "2023-10-11",
+        "status": "resolving — effusion shrinking on echo"
+      },
+      {
+        "name": "Secondary Sjögren's Syndrome",
+        "icd_code": "M35.0",
+        "date_first_noted": "2020",
+        "status": "active — xerostomia, keratoconjunctivitis sicca"
+      },
+      {
+        "name": "Antiphospholipid Syndrome (APS)",
+        "icd_code": "D68.61",
+        "date_first_noted": "2023-10",
+        "status": "active — on anticoagulation"
+      },
+      {
+        "name": "Autoimmune Haemolytic Anaemia (AIHA)",
+        "icd_code": "D59.1",
+        "date_first_noted": "2023-10-11",
+        "status": "improving — Hb rising on immunosuppression"
+      },
+      {
+        "name": "Steroid-induced hyperglycaemia / pre-diabetes",
+        "icd_code": "E73.9",
+        "date_first_noted": "2023-11",
+        "status": "suspected — HbA1c 43, fasting glucose 6.4"
+      },
+      {
+        "name": "Dyslipidaemia (steroid-related)",
+        "icd_code": "E78.5",
+        "date_first_noted": "2023-11",
+        "status": "active — statin deferred until disease stable"
+      }
+    ],
+    "medications": [
+      {
+        "name": "Prednisolone",
+        "dose": "60mg (tapering: -10mg every 2 weeks from 22/11/2023)",
+        "frequency": "Once daily in the morning",
+        "start_date": "2023-10-14",
+        "prescribing_doctor": "Prof D. Okafor"
+      },
+      {
+        "name": "Mycophenolate mofetil (MMF)",
+        "dose": "1.5g (increased from 1g at 22/11/2023 clinic)",
+        "frequency": "Twice daily (BD) with food",
+        "start_date": "2023-10-16",
+        "prescribing_doctor": "Prof D. Okafor / Dr S. Singh"
+      },
+      {
+        "name": "Hydroxychloroquine",
+        "dose": "200mg (reduced from 400mg pending ophthalmology review — >5yr cumulative use)",
+        "frequency": "Twice daily (BD)",
+        "start_date": "2017",
+        "prescribing_doctor": "Prof D. Okafor"
+      },
+      {
+        "name": "Warfarin",
+        "dose": "Dose adjusted to maintain INR 2.5–3.5 (current INR 2.8)",
+        "frequency": "Once daily in the evening",
+        "start_date": "2023-10-17",
+        "prescribing_doctor": "Dr S. Singh"
+      },
+      {
+        "name": "Omeprazole",
+        "dose": "20mg",
+        "frequency": "Once daily (gastric protection while on steroids)",
+        "start_date": "2023-10-14",
+        "prescribing_doctor": "Prof D. Okafor"
+      },
+      {
+        "name": "Calcium carbonate + Vitamin D3 (Adcal-D3)",
+        "dose": "1500mg/400IU",
+        "frequency": "Twice daily",
+        "start_date": "2023-10-14",
+        "prescribing_doctor": "Prof D. Okafor"
+      },
+      {
+        "name": "Hypromellose 0.3% eye drops",
+        "dose": "1-2 drops per eye",
+        "frequency": "As needed (approx 10x daily for dry eyes)",
+        "start_date": "2020",
+        "prescribing_doctor": "Dr A. Patel (GP)"
+      }
+    ],
+    "allergies": [
+      "Penicillin — anaphylaxis (documented 2009)",
+      "Sulfonamides — rash (documented 2015)"
+    ],
+    "lab_results": [
+      {
+        "test_name": "Creatinine",
+        "value": "142",
+        "unit": "µmol/L",
+        "date": "2023-11-20",
+        "flag": "high"
+      },
+      {
+        "test_name": "eGFR (CKD-EPI)",
+        "value": "49",
+        "unit": "mL/min/1.73m²",
+        "date": "2023-11-20",
+        "flag": "low"
+      },
+      {
+        "test_name": "Urine PCR",
+        "value": "88",
+        "unit": "mg/mmol",
+        "date": "2023-11-20",
+        "flag": "high"
+      },
+      {
+        "test_name": "Haemoglobin",
+        "value": "11.4",
+        "unit": "g/dL",
+        "date": "2023-11-20",
+        "flag": "low"
+      },
+      {
+        "test_name": "anti-dsDNA",
+        "value": "248",
+        "unit": "IU/mL",
+        "date": "2023-11-20",
+        "flag": "high"
+      },
+      {
+        "test_name": "Complement C3",
+        "value": "0.65",
+        "unit": "g/L",
+        "date": "2023-11-20",
+        "flag": "low"
+      },
+      {
+        "test_name": "Complement C4",
+        "value": "0.09",
+        "unit": "g/L",
+        "date": "2023-11-20",
+        "flag": "low"
+      },
+      {
+        "test_name": "INR",
+        "value": "2.8",
+        "unit": "—",
+        "date": "2023-11-20",
+        "flag": "normal"
+      },
+      {
+        "test_name": "Fasting Glucose",
+        "value": "6.4",
+        "unit": "mmol/L",
+        "date": "2023-11-20",
+        "flag": "high"
+      },
+      {
+        "test_name": "HbA1c",
+        "value": "43",
+        "unit": "mmol/mol",
+        "date": "2023-11-20",
+        "flag": "normal"
+      },
+      {
+        "test_name": "ANA titre",
+        "value": "1:320 (homogeneous)",
+        "unit": "—",
+        "date": "2023-11-20",
+        "flag": "high"
+      },
+      {
+        "test_name": "ESR",
+        "value": "64",
+        "unit": "mm/hr",
+        "date": "2023-11-20",
+        "flag": "high"
+      },
+      {
+        "test_name": "CRP",
+        "value": "18",
+        "unit": "mg/L",
+        "date": "2023-11-20",
+        "flag": "high"
+      },
+      {
+        "test_name": "Vitamin D (25-OH)",
+        "value": "38",
+        "unit": "nmol/L",
+        "date": "2023-11-20",
+        "flag": "low"
+      }
+    ],
+    "timeline": [
+      {
+        "date": "2017",
+        "event": "SLE diagnosis. ANA 1:1280, anti-dsDNA 187 IU/mL, low C3/C4. Started hydroxychloroquine 400mg and prednisolone 5mg.",
+        "category": "diagnosis"
+      },
+      {
+        "date": "2019",
+        "event": "Prednisolone successfully weaned. Disease in clinical remission.",
+        "category": "medication"
+      },
+      {
+        "date": "2020",
+        "event": "Secondary Sjögren's syndrome confirmed on minor salivary gland biopsy (focal score 2). Started Hypromellose drops.",
+        "category": "diagnosis"
+      },
+      {
+        "date": "2023-09",
+        "event": "Three-week history of worsening fatigue, arthralgia, malar rash, and dry mouth/eyes. Presented to GP (Dr Patel).",
+        "category": "visit"
+      },
+      {
+        "date": "2023-10-09",
+        "event": "GP visit. Dipstick: protein +++, blood ++. Referred urgently to hospital. Prednisolone increased to 40mg.",
+        "category": "visit"
+      },
+      {
+        "date": "2023-10-11",
+        "event": "Hospital admission — Ward 7B. Creatinine 198, eGFR 34. ANA 1:640, anti-dsDNA 412. ECG: pericarditis. Hb 9.2, DAT+ve (AIHA). IV methylprednisolone 500mg x3 commenced.",
+        "category": "visit"
+      },
+      {
+        "date": "2023-10-13",
+        "event": "Echocardiogram: pericardial effusion 12mm, no tamponade, EF 63%. Chest X-ray: left pleural effusion, cardiomegaly.",
+        "category": "procedure"
+      },
+      {
+        "date": "2023-10-14",
+        "event": "Renal biopsy. Result: ISN/RPS Class III lupus nephritis (35% glomeruli affected, full-house IF, activity index 8/24). APS confirmed (LA positive x2, aCL IgG 68 GPL).",
+        "category": "procedure"
+      },
+      {
+        "date": "2023-10-16",
+        "event": "Mycophenolate mofetil 1g BD commenced. Warfarin started for APS.",
+        "category": "medication"
+      },
+      {
+        "date": "2023-10-19",
+        "event": "Discharged home. Prednisolone 60mg od, MMF 1g BD, HCQ 200mg BD, warfarin, omeprazole, calcium+VitD.",
+        "category": "visit"
+      },
+      {
+        "date": "2023-11-20",
+        "event": "Bloods: creatinine 142, eGFR 49, PCR 88, Hb 11.4 g/dL. Significant improvement across all markers.",
+        "category": "lab"
+      },
+      {
+        "date": "2023-11-22",
+        "event": "Rheumatology outpatient review with Prof Okafor. MMF increased to 1.5g BD. Steroid taper started. MRI brain + neurology referral arranged for new headaches. DEXA scan requested. Dietitian referral for borderline glucose.",
+        "category": "visit"
+      },
+      {
+        "date": "2023-12-15",
+        "event": "Ophthalmology appointment booked — hydroxychloroquine retinopathy screening + Sjögren's assessment.",
+        "category": "visit"
+      }
+    ],
+    "clinical_flags": [
+      "⚠ Borderline fasting glucose (6.4 mmol/L) + HbA1c 43 mmol/mol — possible steroid-induced diabetes developing. OGTT or repeat fasting glucose in 4 weeks recommended.",
+      "⚠ New persistent headaches (3 months) — neuropsychiatric lupus or APS-related cerebrovascular event must be excluded. MRI brain + neurology referral arranged.",
+      "⚠ Dyslipidaemia (LDL 3.6, TG 2.4, HDL 0.9) — likely steroid-related. Statin deferred until disease stable. Monitor.",
+      "⚠ Vitamin D insufficiency (38 nmol/L) — continue supplementation, recheck in 3 months.",
+      "⚠ Borderline elevated RVSP on echo (34 mmHg) — monitor for pulmonary hypertension given APS/SLE overlap.",
+      "⚠ Smoker (5 cigarettes/day) — significantly increases clot risk with APS and reduces HCQ efficacy. Smoking cessation referral placed.",
+      "ℹ Hydroxychloroquine >5 years — ophthalmology screening for retinopathy scheduled 15/12/2023.",
+      "ℹ DEXA scan requested — prolonged high-dose steroid exposure, rule out osteoporosis.",
+      "ℹ Warfarin INR 2.8 — within target range (2.5–3.5). Continue monthly INR monitoring.",
+      "ℹ Renal biopsy chronicity index 2/12 — some irreversible scarring present. Long-term renal function preservation is a priority."
+    ]
+  },
+  "source_documents": [
+    {
+      "name": "james_hartwell_handwritten_note_1.txt",
+      "type": "handwritten_note",
+      "label": "GP Handwritten Note — 09 Oct 2023",
+      "icon": "📝",
+      "description": "OCR-extracted handwritten GP note by Dr A. Patel. Documents initial presentation with malar rash, joint pain, urinary dipstick protein+++."
+    },
+    {
+      "name": "james_hartwell_handwritten_note_2.txt",
+      "type": "handwritten_note",
+      "label": "Ward Progress Note — 12 Oct 2023",
+      "icon": "📝",
+      "description": "OCR-extracted ward progress note from SpR G. Mensah. Documents inpatient course, investigation results, and immediate management plan."
+    },
+    {
+      "name": "james_hartwell_clinical_report.txt",
+      "type": "clinical_letter",
+      "label": "Rheumatology Clinic Letter — 22 Nov 2023",
+      "icon": "📄",
+      "description": "Typed clinic letter from Prof D. Okafor summarising full disease history, October admission, and current management plan."
+    },
+    {
+      "name": "james_hartwell_labs.txt",
+      "type": "lab_report",
+      "label": "Full Blood Panel + Immunology — 20 Nov 2023",
+      "icon": "🧪",
+      "description": "Laboratory report with haematology, biochemistry, immunology, and urine results. Four structured Markdown tables."
+    },
+    {
+      "name": "james_hartwell_xray_report.txt",
+      "type": "radiology_report",
+      "label": "Chest X-Ray + Echocardiogram — 13 Oct 2023",
+      "icon": "🫀",
+      "description": "Radiology report documenting left pleural effusion, mild cardiomegaly, pericardial effusion (12mm), and preserved LV function."
+    },
+    {
+      "name": "james_hartwell_transcript.txt",
+      "type": "audio_transcript",
+      "label": "Consultation Transcript — 22 Nov 2023",
+      "icon": "🎙️",
+      "description": "Whisper-transcribed 14-minute consultation between Prof Okafor and Mr Hartwell. Covers medication adherence, symptoms, steroid concerns, smoking, headaches."
+    }
+  ],
+  "demo_questions": [
+    "What medications is James currently taking and when were they prescribed?",
+    "What are James's most recent kidney function results and how have they changed since admission?",
+    "What is lupus nephritis Class III and what does it mean for James's prognosis?",
+    "Why is James on warfarin and what is his target INR?",
+    "What are the clinical flags I should be concerned about at the next review?",
+    "Summarise the October 2023 hospital admission in plain English for a patient.",
+    "What symptoms does James describe in the consultation recording?",
+    "What follow-up appointments does James have scheduled?"
+  ]
+}

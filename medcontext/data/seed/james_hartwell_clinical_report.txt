@@ -1,0 +1,215 @@
+============================================================
+  DOCLING EXTRACTION OUTPUT — SOURCE: james_hartwell_clinical_report.pdf
+  FORMAT: DocumentConverter (typed letter, 3 pages)
+  TEXT VOLUME: 4,812 chars  →  ✓ sufficient
+  TABLES DETECTED: 0
+  SECTIONS DETECTED: 8
+============================================================
+
+[SECTION: Header]
+
+RHEUMATOLOGY OUTPATIENT CLINIC LETTER
+Northgate University Hospital NHS Foundation Trust
+Department of Rheumatology & Clinical Immunology
+Consultant: Professor D. Okafor MD FRCP
+
+Date: 22 November 2023
+Patient: Mr James Hartwell
+Date of Birth: 14 March 1966
+MRN: JH-001
+NHS Number: 485 267 3901
+Address: 14 Ashford Lane, Millbrook, MK12 4PJ
+GP: Dr Anita Patel, Millbrook Surgery
+
+---
+
+[SECTION: Reason for Clinic Attendance]
+
+Dear Dr Patel,
+
+Thank you for referring Mr Hartwell to our clinic. I reviewed him in the Rheumatology
+Outpatient clinic on 22/11/2023. As you know, Mr Hartwell is a 57-year-old man
+(now 58 years old, DOB 14/03/1966) with a six-year history of Systemic Lupus
+Erythematosus (SLE) who was admitted acutely in October 2023 with a significant
+disease flare. I am writing to summarise the outcome of today's review and the
+current management plan.
+
+---
+
+[SECTION: History of Presenting Complaint]
+
+Mr Hartwell first presented to your surgery in 2017 with a three-month history of
+progressive fatigue, bilateral arthralgia predominantly affecting the small joints of
+the hands, and a photosensitive malar rash. At that time, investigations confirmed
+a strongly positive antinuclear antibody (ANA titre 1:1280, speckled pattern) and
+elevated anti-double-stranded DNA antibodies (anti-dsDNA 187 IU/mL, reference
+<10 IU/mL), with low complement (C3 0.52 g/L, C4 0.06 g/L), consistent with a
+diagnosis of SLE. He was commenced on hydroxychloroquine 400mg daily and
+maintained on low-dose prednisolone 5mg daily for approximately two years before
+this was successfully weaned.
+
+His disease course has been characterised by intermittent flares, predominantly
+manifesting with mucocutaneous and musculoskeletal involvement. In 2020, he
+developed symptoms consistent with secondary Sjögren's syndrome — severe
+xerostomia, keratoconjunctivitis sicca, and parotid gland swelling — confirmed on
+minor salivary gland biopsy (focal lymphocytic sialadenitis, focus score 2).
+
+The October 2023 admission represented his most severe flare to date. He presented
+to Dr Patel with three weeks of worsening fatigue, new-onset chest pain worsened
+by lying flat, bilateral hand arthralgia, and significant urinary proteinuria on
+dipstick (protein +++, blood ++). He was admitted urgently to Ward 7B under joint
+Nephrology and Rheumatology care.
+
+---
+
+[SECTION: Investigations During October 2023 Admission]
+
+During his inpatient stay the following results were notable:
+
+Renal: Serum creatinine 198 µmol/L (eGFR 34 mL/min/1.73m²), urine
+protein-to-creatinine ratio (PCR) 487 mg/mmol (reference <15 mg/mmol),
+microscopic haematuria on urine microscopy (red cell casts identified).
+
+Immunology: ANA 1:640 (homogeneous), anti-dsDNA 412 IU/mL (markedly elevated),
+C3 0.38 g/L (low), C4 0.04 g/L (low), anti-Ro (SSA) positive, anti-La (SSB)
+positive. Antiphospholipid antibody screen: lupus anticoagulant positive on two
+occasions 12 weeks apart, anticardiolipin IgG 68 GPL units (reference <10),
+anti-β2-glycoprotein-I IgG 52 units (reference <8) — fulfilling criteria for
+antiphospholipid syndrome (APS).
+
+Haematology: Haemoglobin 9.2 g/dL (MCV 88 fL, normochromic), reticulocyte count
+elevated (8.2%), direct antiglobulin test (DAT/Coombs) IgG positive — consistent
+with autoimmune haemolytic anaemia (AIHA). Platelet count 142 × 10⁹/L.
+
+Cardiac: ECG demonstrated sinus tachycardia with diffuse ST elevation and PR segment
+depression, consistent with acute pericarditis. Echocardiogram on 13/10/2023
+demonstrated a small-to-moderate pericardial effusion (maximum depth 12mm, no
+haemodynamic compromise), mild tricuspid regurgitation, preserved LV function
+(EF 62%).
+
+Chest X-ray 11/10/2023: Small left-sided pleural effusion, cardiomegaly.
+(See separate radiology report — james_hartwell_xray_report.pdf)
+
+Renal biopsy 14/10/2023: Light microscopy showed focal proliferative
+glomerulonephritis affecting approximately 35% of glomeruli. Immunofluorescence:
+full-house pattern (IgG, IgA, IgM, C3, C1q deposition). Electron microscopy:
+mesangial and subendothelial deposits. Classification: ISN/RPS Class III lupus
+nephritis. Chronicity index 2/12, Activity index 8/24.
+
+---
+
+[SECTION: Inpatient Treatment]
+
+Mr Hartwell received three pulses of intravenous methylprednisolone 500mg on
+days 1–3 of admission (11–13 October 2023), followed by oral prednisolone
+60mg daily. He was subsequently started on mycophenolate mofetil (MMF) 2g daily
+(in two divided doses of 1g BD), which was titrated as tolerated. Given the
+confirmed APS, therapeutic anticoagulation with warfarin was commenced with a
+target INR of 2.5–3.5.
+
+He was discharged on 19 October 2023 in an improved condition with:
+- Prednisolone 60mg od (tapering schedule: reduce by 10mg every 2 weeks, guided by
+  clinical response and renal function)
+- Hydroxychloroquine 200mg BD (dose reduced pending ophthalmology review for
+  cumulative toxicity screening — he has received >5 years of therapy)
+- Mycophenolate mofetil 1g BD (to be increased to 1.5g BD at this outpatient visit
+  if tolerated)
+- Warfarin (current INR 2.8 — within target range)
+- Omeprazole 20mg od (gastric protection)
+- Calcium + Vitamin D supplement
+- LMWH bridging (completed)
+
+---
+
+[SECTION: Review at Today's Clinic — 22 November 2023]
+
+Mr Hartwell reports feeling significantly better than at the time of admission. His
+energy levels have improved, the malar rash has faded considerably, and the chest
+pain has fully resolved. He continues to have mild bilateral hand stiffness in the
+mornings (approximately 30 minutes), reduced from the 2–3 hours he was experiencing
+in October. He reports ongoing dry eyes and dry mouth (KCS/Sjögren's symptoms),
+managed with Hypromellose 0.3% eye drops and regular saliva substitutes.
+
+He does express concern about weight gain since starting high-dose prednisolone.
+He has noticed increased appetite and has gained approximately 4kg in the past 6
+weeks. He is also concerned about long-term steroid side effects and has asked
+about steroid-sparing options.
+
+Examination findings today:
+BP 128/78 mmHg (right arm), HR 76 bpm, Temperature 36.8°C, Oxygen saturation
+99% on room air, Weight 84 kg (was 80 kg in October).
+
+Skin: Fading malar erythema across the cheeks and nose, no active discoid lesions,
+no photosensitive rash currently.
+Joints: Mild tenderness at bilateral MCP joints 2-4, no synovitis, no warmth.
+Chest: Clear to auscultation bilaterally, no pericardial rub.
+Abdomen: Soft, non-tender. No hepatosplenomegaly.
+Ankles: No peripheral oedema.
+
+Urinalysis today: Protein + (improved from +++ on admission), no blood.
+
+---
+
+[SECTION: Current Blood Results — 20 November 2023]
+
+(See detailed lab report — james_hartwell_labs.pdf)
+
+Creatinine: 142 µmol/L (improved from 198), eGFR 49 mL/min/1.73m²
+Urine PCR: 89 mg/mmol (significantly improved from 487)
+Haemoglobin: 11.4 g/dL (improved from 9.2)
+C3: 0.65 g/L (improving, was 0.38)
+C4: 0.09 g/L (improving, was 0.04)
+anti-dsDNA: 248 IU/mL (improving, was 412)
+INR: 2.8 (therapeutic)
+Fasting glucose: 6.4 mmol/L (borderline — monitor, likely steroid-related)
+HbA1c: 43 mmol/mol (pre-diabetic range — advise lifestyle)
+
+---
+
+[SECTION: Management Plan and Recommendations]
+
+1. LUPUS NEPHRITIS (Class III): Response to treatment is encouraging. Continue MMF
+   — increasing dose to 1.5g BD as planned. Continue prednisolone tapering schedule.
+   Repeat renal function and urine PCR in 4 weeks. Refer for consideration of
+   belimumab (B-lymphocyte stimulator inhibitor) at next clinic if MMF response
+   is maintained — may facilitate steroid sparing.
+
+2. ANTIPHOSPHOLIPID SYNDROME: Continue warfarin, target INR 2.5–3.5. Patient
+   counselled regarding the importance of anticoagulation given prior DVT risk and
+   positive aPL on two occasions. Repeat aPL testing in 12 weeks.
+
+3. AIHA: Haemoglobin improving on immunosuppression. Continue monitoring FBC.
+   Haematology follow-up in 3 months.
+
+4. PERICARDITIS/SEROSITIS: Clinically resolved. Echo to be repeated in 3 months
+   to confirm resolution of effusion.
+
+5. SJÖGREN'S SYMPTOMS: Ophthalmology referral made. Continue Hypromellose drops
+   and saliva substitutes. Pilocarpine considered but deferred pending cardiac review.
+
+6. HYDROXYCHLOROQUINE RETINOPATHY SCREENING: Ophthalmology appointment scheduled
+   for 15 December 2023.
+
+7. STEROID-RELATED CONCERNS: Blood glucose rising. Dietitian referral placed.
+   Consider formal diabetes screening at next visit. Bone protection: DEXA scan
+   requested given prolonged steroid use.
+
+8. PATIENT EDUCATION: Mr Hartwell was counselled today regarding the importance of
+   strict sun avoidance and high-factor sunscreen use, smoking cessation (he smokes
+   5 cigarettes daily), influenza and pneumococcal vaccination (due to
+   immunosuppression), and the importance of medication adherence.
+
+Next outpatient review: 6–8 weeks (January 2024).
+Please do not hesitate to contact me if you have any concerns in the interim.
+
+Yours sincerely,
+
+Professor Damilola Okafor MD FRCP
+Consultant Rheumatologist & Clinical Immunologist
+Northgate University Hospital NHS Foundation Trust
+Tel: 01908 742 100 ext. 4821
+Email: d.okafor@northgatenhft.nhs.uk
+
+Dictated: 22/11/2023   Typed: 24/11/2023
+
+cc: Dr S. Singh (Nephrology), Haematology Team, Mr Hartwell (patient copy)

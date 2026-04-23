@@ -1,0 +1,53 @@
+============================================================
+  DOCLING EXTRACTION OUTPUT — SOURCE: james_hartwell_note_2.jpg
+  FORMAT: LightOnOCR-2-1B  (handwritten ward progress note, loose A4, pencil)
+  TEXT VOLUME: 891 chars  →  ⚠ OCR fallback applied
+  CONFIDENCE: 0.68
+============================================================
+
+[PAGE 1 — single page, rotated ~3° — auto-corrected]
+
+WARD  PROGRESS  NOTE
+Ward  7B  —  Nephrology  /  Rheum  shared  care
+Date:  12 Oct  2023      Time:  07:45
+
+Pt:  Hartwell,  J.     MRN:  JH-001
+Consultant:  Prof.  D.  Okafor  (Rheum)  +  Dr  S.  Singh  (Renal)
+
+S:  Pt  overnight  — ok,  some  chest  discomfort  lying flat, no  SOB
+    Urine  output  good  ~1200ml  since  admission
+    Still  v.  fatigued,  hands  ache
+
+O:
+Temp 37.4  HR  88  BP  132/82  RR  16  Sats  99%
+Chest:  fine  crackles  L  base  —  pleural  rub?  
+JVP  not  elevated,  no  peripheral  oedema
+Urine:  Frothy  ++
+
+BLOODS  (11/10 — see  chart):
+Creat  198  (H)  eGFR  34  ANA  1:640  (high!)
+C3  low  C4  low   anti-dsDNA  very  high  [result pending exact titre]
+Haem:  Hb  9.2  —  likely  haemolytic  (Coombs+  yesterday)
+Plts  142 — watch
+
+Echo  pending  —  ?pericardial  effusion  (ECG:  sinus  tach,  PR  depression  II,III,aVF)
+
+A/P:
+1. SLE  flare  with  likely  renal  involvement  (Class  III  nephritis  —  biopsy  planned)
+2. Serositis  —  pericarditis
+3. AIHA  —  Coombs  +ve   Hb  dropping   →  haematology  review
+4. APS  screen  pending  (aPL  sent)
+
+Plan:
+→  IV  methylprednisolone  500mg  od  x3  (day  1  of  3)
+→  Hold  myco  until  biopsy  result
+→  Echo  today   CXR   repeat  bloods  tmrw
+→  Renal  biopsy  consent  obtained  —  book  for  14/10
+→  LMWH  prophylaxis  (renally  dose  adjusted  — check  anti-Xa)
+→  Ophth  referral  for  HCQ  retinopathy  screen
+
+Signed:  SpR  G.  Mensah   12/10/23   0750
+
+[NOTE: Text at bottom right corner partially torn — estimated 2 lines missing.
+'tmrw' interpreted as 'tomorrow'. Superscript numerals reconstructed from context.
+Several correction marks in original — most likely deletions of earlier draft text.]
