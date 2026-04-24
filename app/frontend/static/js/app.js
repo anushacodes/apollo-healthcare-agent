@@ -1,136 +1,181 @@
+'use strict';
+
 /**
  * app.js — Main application controller
- *
- * Responsibilities:
- *  1. Detect demo mode (?demo=true in URL)
- *  2. Populate the patient sidebar list
- *  3. Load a patient → show patient view, render summary & upload tabs
- *  4. Handle tab switching
- *  5. Handle "Add Patient" + search
+ * Loads demo cases from /api/agent/cases, drives sidebar, tabs, and KG status.
  */
 
 (function () {
-  'use strict';
 
-  /* ── State ──────────────────────────────────────────── */
   let currentPatient = null;
-  const isDemo = new URLSearchParams(window.location.search).get('demo') === 'true';
 
-  /* ── Boot ───────────────────────────────────────────── */
-  document.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('DOMContentLoaded', async () => {
     initTabs();
-    initSidebar();
     initSearch();
 
-    if (isDemo) {
-      loadPatient(window.DEMO_PATIENT, true);
+    const isDemo = new URLSearchParams(window.location.search).get('demo') === 'true';
+    const caseParam = new URLSearchParams(window.location.search).get('case');
+
+    await initSidebar();      // loads cases from API
+    await initKgStatus();     // KG status indicator
+
+    if (caseParam) {
+      await loadCaseByKey(caseParam);
+    } else if (isDemo) {
+      await loadCaseByKey('case_a');  // default demo = James Hartwell
     } else {
       showEmptyState();
     }
 
-    // "Try demo" from empty state
-    document.getElementById('btnDemoFromEmpty')?.addEventListener('click', e => {
+    document.getElementById('btnDemoFromEmpty')?.addEventListener('click', async e => {
       e.preventDefault();
-      loadPatient(window.DEMO_PATIENT, true);
-      history.replaceState(null, '', '?demo=true');
+      await loadCaseByKey('case_a');
+      history.replaceState(null, '', '?case=case_a');
     });
 
-    // "Upload" from empty state → navigate to app + open upload tab
     document.getElementById('btnUploadFromEmpty')?.addEventListener('click', () => {
-      if (!currentPatient) {
-        // Create an empty placeholder patient
-        loadPatient(emptyPatient(), false);
-      }
+      if (!currentPatient) loadPatient(emptyPatient(), false);
       activateTab('upload');
     });
 
-    // "Add Patient" in sidebar
     document.getElementById('btnAddPatient')?.addEventListener('click', () => {
       loadPatient(emptyPatient(), false);
       activateTab('upload');
     });
   });
 
-  /* ── Patient list ───────────────────────────────────── */
-  function initSidebar() {
+
+  /* ── Sidebar — loads cases from API ─────────────────────── */
+  async function initSidebar() {
     const list = document.getElementById('patientList');
     if (!list) return;
 
-    // Always show demo patient as an entry
-    list.innerHTML = buildPatientItem({
-      id: 'demo-jh-001',
-      initials: 'JH',
-      name: 'James Hartwell',
-      sub: 'JH-001 · Demo',
-      badge: 'demo',
-      badgeLabel: 'Demo',
-      isDemo: true,
-    });
+    let cases = [];
+    try {
+      cases = await API.getCases();
+    } catch {
+      // fallback: show James Hartwell only
+      cases = [{ key: 'case_a', label: 'Case A — James Hartwell (SLE / Lupus Nephritis)' }];
+    }
+
+    list.innerHTML = cases.map(c => {
+      const [initials, sub] = parseCaseLabel(c.label);
+      return buildPatientItem({ id: c.key, initials, name: c.label.split('—')[1]?.trim() || c.label, sub, caseKey: c.key });
+    }).join('');
 
     list.querySelectorAll('.patient-item').forEach(el => {
-      el.addEventListener('click', () => {
-        if (el.dataset.id === 'demo-jh-001') {
-          loadPatient(window.DEMO_PATIENT, true);
-          history.replaceState(null, '', '?demo=true');
-        }
-        // Real patients would be fetched from API here
+      el.addEventListener('click', async () => {
+        await loadCaseByKey(el.dataset.id);
+        history.replaceState(null, '', `?case=${el.dataset.id}`);
       });
     });
   }
 
-  function buildPatientItem({ id, initials, name, sub, badge, badgeLabel, isDemo: dem }) {
+  function parseCaseLabel(label) {
+    // "Case A — James Hartwell (SLE / Lupus Nephritis)"
+    const match = label.match(/Case\s+([A-Z])/i);
+    const letter = match ? match[1].toUpperCase() : '?';
+    const nameMatch = label.split('—')[1]?.trim() || label;
+    const name = nameMatch.split('(')[0].trim();
+    const initials = name.split(' ').filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+    return [initials, label.match(/\(([^)]+)\)/)?.[1] || ''];
+  }
+
+  function buildPatientItem({ id, initials, name, sub, caseKey }) {
     return `
-      <div class="patient-item" data-id="${id}">
-        <div class="patient-avatar${dem ? ' demo' : ''}">${initials}</div>
+      <div class="patient-item" data-id="${id}" data-case="${caseKey}">
+        <div class="patient-avatar demo">${initials}</div>
         <div class="patient-info">
           <div class="patient-name">${name}</div>
           <div class="patient-sub">${sub}</div>
         </div>
-        ${badge ? `<span class="patient-badge badge-${badge}">${badgeLabel}</span>` : ''}
+        <span class="patient-badge badge-demo">Demo</span>
       </div>
     `;
   }
 
-  /* ── Load patient ───────────────────────────────────── */
+
+  /* ── KG status indicator ─────────────────────────────────── */
+  async function initKgStatus() {
+    const el = document.getElementById('kgStatusBar');
+    if (!el) return;
+    try {
+      const status = await API.getKgStatus();
+      const neo4jUp = status.neo4j_available;
+      el.innerHTML = `
+        <div class="kg-status-row">
+          <span class="kg-dot ${neo4jUp ? 'online' : 'offline'}"></span>
+          <span class="kg-label">Neo4j</span>
+          <span class="kg-val">${neo4jUp ? `${status.neo4j_conditions_seeded}/${status.local_conditions}` : 'offline'}</span>
+          ${neo4jUp && status.unseeded > 0 ? `
+            <button class="kg-seed-btn" id="btnSeedKg">Seed ${status.unseeded} more</button>
+          ` : ''}
+        </div>
+      `;
+      document.getElementById('btnSeedKg')?.addEventListener('click', async () => {
+        await API.triggerKgSeed(false);
+        setTimeout(initKgStatus, 1500);
+      });
+    } catch {
+      el.innerHTML = `<div class="kg-status-row"><span class="kg-dot offline"></span><span class="kg-label">KG unavailable</span></div>`;
+    }
+  }
+
+
+  /* ── Load a demo case from API ───────────────────────────── */
+  async function loadCaseByKey(caseKey) {
+    try {
+      const patient = await API.getCaseData(caseKey);
+      patient._caseKey = caseKey;
+      loadPatient(patient, true);
+    } catch (err) {
+      console.error('[app] Failed to load case', caseKey, err);
+      // Graceful fallback: show empty state with error
+      showEmptyState();
+    }
+  }
+
+
+  /* ── Load patient into view ──────────────────────────────── */
   function loadPatient(patient, demo) {
     currentPatient = patient;
 
-    // Mark active sidebar item
     document.querySelectorAll('.patient-item').forEach(el => {
-      el.classList.toggle('active', el.dataset.id === patient.patient_id);
+      el.classList.toggle('active', el.dataset.id === (patient._caseKey || patient.patient_id));
     });
 
     showPatientView();
 
-    // Demo banner
     const banner = document.getElementById('demoBanner');
-    if (banner) banner.style.display = demo ? '' : 'none';
+    if (banner) {
+      banner.style.display = demo ? '' : 'none';
+      const sub = banner.querySelector('.db-sub');
+      if (sub) sub.textContent = `— ${patient.case_label || patient.patient?.name || 'Synthetic patient data'}`;
+    }
 
     renderPatientHeader(patient);
     renderSummary(patient);
     renderUpload(patient, demo);
+    // Diagnostics renders on-demand when tab is activated
   }
 
-  /* ── Patient header ─────────────────────────────────── */
+
+  /* ── Patient header ──────────────────────────────────────── */
   function renderPatientHeader(patient) {
     const el = document.getElementById('patientHeader');
     if (!el) return;
-
     const p  = patient.patient || {};
     const s  = patient.summary || {};
     const dx = (s.diagnoses || []).slice(0, 3).map(d => d.name).join(' · ');
-
     el.innerHTML = `
       <div class="ph-avatar">${initials(p.name)}</div>
       <div class="ph-info">
-        <div class="ph-name">
-          ${p.name || 'Unknown Patient'}
-        </div>
+        <div class="ph-name">${p.name || 'Unknown Patient'}</div>
         <div class="ph-meta">
-          <span class="ph-meta-item">🗓 DOB: ${p.dob || '—'}</span>
-          <span class="ph-meta-item">🪪 MRN: ${p.mrn || '—'}</span>
-          <span class="ph-meta-item">🎂 Age: ${p.age || '—'}</span>
-          ${dx ? `<span class="ph-meta-item" style="color:var(--text-secondary)">${dx}</span>` : ''}
+          ${p.dob  ? `<span class="ph-meta-item">🗓 DOB: ${p.dob}</span>` : ''}
+          ${p.mrn  ? `<span class="ph-meta-item">🪪 MRN: ${p.mrn}</span>` : ''}
+          ${p.age  ? `<span class="ph-meta-item">🎂 Age: ${p.age}</span>` : ''}
+          ${dx     ? `<span class="ph-meta-item" style="color:var(--text-secondary)">${dx}</span>` : ''}
         </div>
       </div>
       <div class="ph-badges">
@@ -141,17 +186,17 @@
   }
 
   function initials(name = '') {
-    return name.split(' ')
-      .filter(Boolean)
-      .map(w => w[0].toUpperCase())
-      .slice(0, 2)
-      .join('');
+    return name.split(' ').filter(Boolean).map(w => w[0].toUpperCase()).slice(0, 2).join('');
   }
 
-  /* ── Tabs ───────────────────────────────────────────── */
+
+  /* ── Tabs ────────────────────────────────────────────────── */
   function initTabs() {
     document.querySelectorAll('.tab-btn').forEach(btn => {
-      btn.addEventListener('click', () => activateTab(btn.dataset.tab));
+      btn.addEventListener('click', () => {
+        if (btn.classList.contains('disabled')) return;
+        activateTab(btn.dataset.tab);
+      });
     });
   }
 
@@ -162,22 +207,28 @@
     document.querySelectorAll('.tab-panel').forEach(panel =>
       panel.classList.toggle('active', panel.id === `tab-${tabId}`)
     );
+
+    // Render diagnostics on first activation
+    if (tabId === 'diagnostics' && currentPatient) {
+      renderDiagnostics(currentPatient);
+    }
   }
 
-  /* ── Search ─────────────────────────────────────────── */
+
+  /* ── Search ──────────────────────────────────────────────── */
   function initSearch() {
     const input = document.getElementById('patientSearch');
     if (!input) return;
     input.addEventListener('input', () => {
       const q = input.value.trim().toLowerCase();
       document.querySelectorAll('.patient-item').forEach(el => {
-        const text = el.textContent.toLowerCase();
-        el.style.display = text.includes(q) ? '' : 'none';
+        el.style.display = el.textContent.toLowerCase().includes(q) ? '' : 'none';
       });
     });
   }
 
-  /* ── Visibility helpers ─────────────────────────────── */
+
+  /* ── Visibility helpers ──────────────────────────────────── */
   function showEmptyState() {
     document.getElementById('emptyState').style.display  = '';
     document.getElementById('patientView').style.display = 'none';
@@ -187,18 +238,12 @@
     document.getElementById('patientView').style.display = '';
   }
 
-  /* ── Empty patient placeholder ──────────────────────── */
   function emptyPatient() {
     return {
       patient_id: 'new-' + Date.now(),
       patient: { name: 'New Patient', dob: '—', mrn: '—', age: '—' },
-      summary: {
-        summary_narrative: 'No summary yet — upload documents to generate one.',
-        diagnoses: [], medications: [], lab_results: [],
-        clinical_flags: [], allergies: [], timeline: [],
-      },
+      summary: { summary_narrative: '', diagnoses: [], medications: [], lab_results: [], clinical_flags: [], allergies: [], timeline: [] },
       source_documents: [],
-      demo_questions: [],
     };
   }
 

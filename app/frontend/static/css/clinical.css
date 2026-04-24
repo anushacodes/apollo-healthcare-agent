@@ -1,0 +1,346 @@
+/*
+ * clinical.css — Light theme overrides for Apollo
+ * Loaded after app.css. Replaces all dark-specific hardcoded values.
+ */
+
+/* ── Page & Layout ────────────────────────────────── */
+body.app-body { background: var(--bg-page); }
+
+.main-content { background: var(--bg-page); }
+
+.tab-panels { background: var(--bg-page); }
+
+/* ── Sidebar ──────────────────────────────────────── */
+.sidebar {
+  background: var(--sidebar-bg);
+  border-right: 1px solid rgba(0,0,0,0.15);
+}
+.sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); }
+
+.sidebar-logo { border-bottom: 1px solid rgba(255,255,255,0.08); }
+.sidebar-logo .logo-mark {
+  background: linear-gradient(135deg, #2563EB, #38BDF8);
+}
+.sidebar-logo .logo-name {
+  background: linear-gradient(90deg, #FFFFFF, #94A3B8);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.sidebar-logo .logo-version { color: var(--sidebar-text-dim); }
+
+.sidebar-section-label { color: var(--sidebar-text-dim); }
+
+.search-wrap input {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.10);
+  color: #FFFFFF;
+}
+.search-wrap input::placeholder { color: var(--sidebar-text-dim); }
+.search-wrap input:focus { border-color: rgba(56,189,248,0.4); }
+.search-wrap .search-icon { color: var(--sidebar-text-dim); }
+
+.patient-item { border-radius: var(--r-sm); }
+.patient-item:hover { background: rgba(255,255,255,0.05); }
+.patient-item.active {
+  background: var(--sidebar-active-bg);
+  border-color: rgba(56,189,248,0.3);
+}
+.patient-name { color: #F1F5F9; font-size: 13px; }
+.patient-sub  { color: var(--sidebar-text-dim); font-size: 11px; }
+.patient-avatar { background: linear-gradient(135deg, #2563EB, #38BDF8); }
+.patient-avatar.demo { background: linear-gradient(135deg, #1D4ED8, #0EA5E9); }
+
+.badge-demo {
+  background: rgba(56,189,248,0.12);
+  color: #7DD3FC;
+  border-color: rgba(56,189,248,0.2);
+}
+
+.sidebar-footer { border-top: 1px solid rgba(255,255,255,0.08); }
+.btn-add-patient {
+  color: var(--sidebar-text-dim);
+  border-color: rgba(255,255,255,0.12);
+}
+.btn-add-patient:hover {
+  color: #38BDF8;
+  border-color: rgba(56,189,248,0.3);
+  background: rgba(56,189,248,0.08);
+}
+
+/* KG status in sidebar */
+.kg-status-row { color: var(--sidebar-text-dim); }
+.kg-dot.online  { background: #34D399; }
+.kg-dot.offline { background: rgba(255,255,255,0.2); }
+.kg-label { color: var(--sidebar-text-dim); }
+.kg-val   { color: var(--sidebar-text-dim); }
+.kg-seed-btn {
+  color: #7DD3FC;
+  border-color: rgba(56,189,248,0.25);
+  background: rgba(56,189,248,0.08);
+}
+.kg-seed-btn:hover { background: #2563EB; color: #fff; }
+
+/* ── Patient header ───────────────────────────────── */
+.patient-header {
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 24px;
+}
+.ph-avatar { background: linear-gradient(135deg, #1D4ED8, #0EA5E9); }
+.ph-name   { color: var(--text-primary); font-size: 17px; }
+.ph-meta   { color: var(--text-muted); }
+.status-badge.demo {
+  background: #EFF6FF; color: #1D4ED8;
+  border: 1px solid #BFDBFE;
+}
+.status-badge.active {
+  background: #ECFDF5; color: #065F46;
+  border: 1px solid #A7F3D0;
+}
+
+/* ── Demo banner ──────────────────────────────────── */
+.demo-banner {
+  background: #EFF6FF;
+  border-bottom: 1px solid #BFDBFE;
+}
+.demo-banner .db-dot   { background: #2563EB; animation: none; }
+.demo-banner .db-text  { color: #1D4ED8; }
+.demo-banner .db-sub   { color: var(--text-muted); }
+
+/* ── Tab nav ──────────────────────────────────────── */
+.tab-nav {
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+}
+.tab-btn { color: var(--text-muted); font-size: 13px; }
+.tab-btn:hover { color: var(--text-secondary); }
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab-soon-badge {
+  background: #FEF3C7; color: #92400E;
+  border-color: #FDE68A;
+}
+
+/* ── Tab panels ───────────────────────────────────── */
+.tab-panel { padding: 24px; }
+
+/* ── Cards (summary sections) ─────────────────────── */
+.summary-narrative {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: none;
+}
+.summary-narrative h3 { color: var(--accent); }
+.summary-narrative p  { color: var(--text-secondary); }
+
+.sum-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: none;
+}
+.sum-card-header { border-bottom-color: var(--border); }
+
+/* Diagnosis items */
+.dx-item {
+  background: var(--bg-raised);
+  border-color: var(--border);
+}
+.dx-name { color: var(--text-primary); }
+.dx-sub  { color: var(--text-muted); }
+.icd-code {
+  background: var(--bg-page);
+  border-color: var(--border);
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+/* Medication items */
+.med-item { background: var(--bg-raised); border-color: var(--border); }
+.med-name { color: var(--text-primary); }
+.med-dose { color: var(--accent); }
+.med-freq { color: var(--text-muted); }
+
+/* Lab items */
+.lab-item { background: var(--bg-raised); border-color: var(--border); }
+.lab-name  { color: var(--text-primary); }
+.lab-value { color: var(--text-primary); }
+.lab-unit  { color: var(--text-muted); }
+.lab-flag.H { background: var(--danger-bg);  color: var(--danger-text); }
+.lab-flag.L { background: var(--info-bg);    color: var(--info-text); }
+.lab-flag.N { background: var(--success-bg); color: var(--success-text); }
+
+/* Flags */
+.flag-item.warn {
+  background: var(--warning-bg);
+  border-color: #FDE68A;
+  color: var(--warning-text);
+}
+.flag-item.info {
+  background: var(--info-bg);
+  border-color: #BFDBFE;
+  color: var(--info-text);
+}
+
+/* Timeline */
+.timeline-section {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: none;
+}
+.timeline-list::before { background: var(--border-strong); }
+.tl-date  { color: var(--text-muted); }
+.tl-event { color: var(--text-secondary); }
+.tl-dot.visit      { background: var(--accent); }
+.tl-dot.lab        { background: var(--success); }
+.tl-dot.procedure  { background: var(--info); }
+.tl-dot.diagnosis  { background: var(--danger); }
+.tl-dot.medication { background: var(--warning); }
+
+/* ── Buttons ──────────────────────────────────────── */
+.btn-primary {
+  background: var(--accent);
+  color: #FFFFFF;
+}
+.btn-primary:hover {
+  background: var(--accent-bright);
+  box-shadow: var(--shadow-md);
+}
+.btn-outline {
+  border-color: var(--border-strong);
+  color: var(--text-secondary);
+}
+.btn-outline:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
+/* ── Upload zone ──────────────────────────────────── */
+.upload-zone {
+  background: var(--bg-surface);
+  border-color: var(--border-strong);
+  backdrop-filter: none;
+}
+.upload-zone:hover, .upload-zone.drag-over {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+.upload-zone h3 { color: var(--text-primary); }
+.upload-zone p  { color: var(--text-muted); }
+.filetype-chip  { background: var(--bg-page); color: var(--text-muted); border-color: var(--border); }
+
+/* Doc cards */
+.doc-card { background: var(--bg-surface); border-color: var(--border); backdrop-filter: none; }
+.doc-card:hover { border-color: var(--accent); }
+.doc-label { color: var(--text-primary); }
+.doc-desc  { color: var(--text-muted); }
+.doc-status.processed { background: var(--success-bg); color: var(--success-text); }
+.doc-status.pending   { background: var(--warning-bg); color: var(--warning-text); }
+.doc-status.error     { background: var(--danger-bg);  color: var(--danger-text); }
+
+/* ── Spinner ──────────────────────────────────────── */
+.spinner {
+  border-color: var(--border-strong);
+  border-top-color: var(--accent);
+}
+
+/* ── Empty state ──────────────────────────────────── */
+.empty-state h2 { color: var(--text-primary); }
+.empty-state p  { color: var(--text-secondary); }
+.empty-state-icon {
+  background: var(--bg-surface);
+  border-color: var(--border);
+}
+
+/* ── Diagnostics overrides ────────────────────────── */
+.diag-launch-panel  { background: var(--bg-surface); border-color: var(--border); backdrop-filter: none; }
+.diag-launch-title  { color: var(--text-primary); }
+.diag-launch-sub    { color: var(--text-muted); }
+.diag-warning       { background: var(--warning-bg); border-color: #FDE68A; color: var(--warning-text); }
+
+.diag-pipeline      { background: var(--bg-surface); border-color: var(--border); backdrop-filter: none; }
+.diag-pipeline-title { color: var(--text-muted); }
+.audit-text         { color: var(--text-secondary); }
+
+.diag-result-panel  { background: var(--bg-surface); border-color: var(--border); backdrop-filter: none; }
+.drp-header         { background: var(--bg-raised); border-bottom-color: var(--border); }
+.drp-title          { color: var(--text-primary); }
+
+.diag-result-row    { background: var(--bg-raised); border-color: var(--border); }
+.diag-row-title     { color: var(--text-primary); }
+.diag-row-sub       { color: var(--text-muted); }
+.diag-row-action    { color: var(--accent); }
+.diag-empty         { color: var(--text-muted); }
+
+.severity-badge.major    { background: var(--danger-bg);  color: var(--danger-text); }
+.severity-badge.moderate { background: var(--warning-bg); color: var(--warning-text); }
+.severity-badge.minor    { background: var(--info-bg);    color: var(--info-text); }
+
+.risk-badge.high     { background: var(--danger-bg);  color: var(--danger-text);  border-color: #FECACA; }
+.risk-badge.moderate { background: var(--warning-bg); color: var(--warning-text); border-color: #FDE68A; }
+.risk-badge.low      { background: var(--success-bg); color: var(--success-text); border-color: #A7F3D0; }
+.risk-badge.unknown  { background: var(--bg-raised);  color: var(--text-muted);   border-color: var(--border); }
+
+.kg-source-badge   { background: var(--bg-page); color: var(--text-muted); border-color: var(--border); }
+.diag-count-badge  { background: var(--bg-page); color: var(--text-muted); }
+.drp-section-label { color: var(--text-muted); }
+
+.dx-diag-item      { background: var(--bg-raised); border-color: var(--border); }
+.dx-diag-name      { color: var(--text-primary); }
+.dx-diag-reasoning { color: var(--text-secondary); }
+.dx-diag-evidence li { color: var(--text-muted); }
+
+.conf-badge.high     { background: var(--success-bg); color: var(--success-text); }
+.conf-badge.moderate { background: var(--warning-bg); color: var(--warning-text); }
+.conf-badge.low      { background: var(--info-bg);    color: var(--info-text); }
+.primary-badge       { background: var(--accent-dim); color: var(--accent); border-color: var(--accent-border); }
+
+.diag-notes-box    { background: var(--bg-raised); border-color: var(--border); color: var(--text-secondary); }
+.diag-notes-label  { color: var(--text-muted); }
+.diag-summary-text { background: var(--accent-dim); border-color: var(--accent-border); color: var(--text-secondary); }
+
+.calc-row          { background: var(--bg-raised); border-color: var(--border); }
+.calc-row.error    { background: var(--danger-bg); color: var(--danger-text); }
+.calc-tool-name    { color: var(--text-primary); }
+.calc-kv           { background: var(--bg-surface); border-color: var(--border); }
+.calc-k            { color: var(--text-muted); }
+.calc-v            { color: var(--accent); }
+
+.diag-summary-field   { background: var(--bg-raised); border-color: var(--border); }
+.diag-summary-field p { color: var(--text-secondary); }
+.diag-list li         { color: var(--text-secondary); }
+.diag-patient-box     { background: #EFF6FF; border-color: var(--accent-border); }
+.diag-patient-box p   { color: var(--text-secondary); }
+.dsf-label            { color: var(--text-muted); }
+
+/* Coming soon panels */
+.coming-soon-panel h2 { color: var(--text-primary); }
+.coming-soon-panel p  { color: var(--text-secondary); }
+.cs-icon-wrap  { background: var(--bg-surface); border-color: var(--border); }
+.cs-feature    { background: var(--bg-surface); border-color: var(--border); color: var(--text-secondary); }
+.cs-badge      { background: var(--warning-bg); color: var(--warning-text); border-color: #FDE68A; }
+
+/* Run button */
+.btn-run-agent {
+  background: var(--accent);
+  box-shadow: none;
+}
+.btn-run-agent:hover:not(:disabled) {
+  background: var(--accent-bright);
+  box-shadow: var(--shadow-md);
+  transform: none;
+}
+.spinner-sm {
+  border-color: rgba(255,255,255,0.3);
+  border-top-color: #fff;
+}
+
+/* Audit node badges — use CSS color-mix polyfill via opacity */
+.audit-node-badge {
+  background: var(--accent-dim);
+  color: var(--accent);
+  border-color: var(--accent-border);
+}
