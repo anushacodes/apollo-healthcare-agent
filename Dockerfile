@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
     libglib2.0-0 \
     sqlite3 \
     libsqlite3-dev \
+    libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -21,6 +22,7 @@ RUN pip install --no-cache-dir .
 COPY app /app/app
 COPY scripts /app/scripts
 COPY data /app/data
+COPY kg /app/kg
 
 # Ensure data directories exist
 RUN mkdir -p /app/data/patients /app/data/seed /app/data/.cache

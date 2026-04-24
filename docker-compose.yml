@@ -1,4 +1,16 @@
 services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file: .env
+    depends_on:
+      - qdrant
+      - neo4j
+    restart: unless-stopped
+    volumes:
+      - ./data:/app/data
+
   qdrant:
     image: qdrant/qdrant:latest
     ports:
@@ -6,6 +18,20 @@ services:
       - "6334:6334"
     volumes:
       - qdrant_data:/qdrant/storage
+    restart: unless-stopped
+
+  neo4j:
+    image: neo4j:5.18-community
+    ports:
+      - "7474:7474"   # browser UI
+      - "7687:7687"   # bolt
+    environment:
+      - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:-change-me}
+      - NEO4J_PLUGINS=["apoc"]
+      - NEO4J_dbms_memory_heap_initial__size=256m
+      - NEO4J_dbms_memory_heap_max__size=512m
+    volumes:
+      - neo4j_data:/data
     restart: unless-stopped
 
   langfuse:
@@ -23,4 +49,5 @@ services:
 
 volumes:
   qdrant_data:
+  neo4j_data:
   langfuse_data:
