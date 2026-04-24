@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     # Groq — strict routing/formatting (Orchestrator, Summarizer)
     groq_model: str = Field(default="llama-3.3-70b-versatile", alias="GROQ_MODEL")
     # Gemini 1.5 Flash — large context window (Diagnosis, Eval agents)
-    gemini_model: str = Field(default="gemini-1.5-flash", alias="GEMINI_MODEL")
+    gemini_model: str = Field(default="gemini-2.0-flash", alias="GEMINI_MODEL")
     # OpenRouter — simpler sub-tasks / final fallback
     openrouter_model: str = Field(default="meta-llama/llama-3-8b-instruct:free", alias="OPENROUTER_MODEL")
 
