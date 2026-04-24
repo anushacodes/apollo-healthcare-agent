@@ -17,16 +17,26 @@ class Settings(BaseSettings):
     # LLM API keys
     groq_api_key: Optional[str] = Field(default=None, alias="GROQ_API_KEY")
     gemini_api_key: Optional[str] = Field(default=None, alias="GEMINI_API_KEY")
-    ollama_base_url: str = Field(default="http://localhost:11434", alias="OLLAMA_BASE_URL")
+    openrouter_api_key: Optional[str] = Field(default=None, alias="OPENROUTER_API_KEY")
 
-    # Primary model choices
+
+    # Model choices per role
+    # Groq — strict routing/formatting (Orchestrator, Summarizer)
     groq_model: str = Field(default="llama-3.3-70b-versatile", alias="GROQ_MODEL")
-    gemini_model: str = Field(default="gemini-2.0-flash", alias="GEMINI_MODEL")
-    ollama_model: str = Field(default="qwen2.5:3b", alias="OLLAMA_MODEL")
+    # Gemini 1.5 Flash — large context window (Diagnosis, Eval agents)
+    gemini_model: str = Field(default="gemini-1.5-flash", alias="GEMINI_MODEL")
+    # OpenRouter — simpler sub-tasks / final fallback
+    openrouter_model: str = Field(default="meta-llama/llama-3-8b-instruct:free", alias="OPENROUTER_MODEL")
+
 
     # Vector store
     qdrant_url: str = Field(default="http://localhost:6333", alias="QDRANT_URL")
     qdrant_api_key: Optional[str] = Field(default=None, alias="QDRANT_API_KEY")
+
+    # Neo4j knowledge graph
+    neo4j_uri: str = Field(default="bolt://localhost:7687", alias="NEO4J_URI")
+    neo4j_user: str = Field(default="neo4j", alias="NEO4J_USER")
+    neo4j_password: Optional[str] = Field(default=None, alias="NEO4J_PASSWORD")
 
     # Observability
     langfuse_public_key: Optional[str] = Field(default=None, alias="LANGFUSE_PUBLIC_KEY")
@@ -71,7 +81,7 @@ class Settings(BaseSettings):
         c.mkdir(parents=True, exist_ok=True)
         return c
 
-    # LLM provider availability
+    # Provider availability flags
     @computed_field
     @property
     def has_groq(self) -> bool:
@@ -81,5 +91,15 @@ class Settings(BaseSettings):
     @property
     def has_gemini(self) -> bool:
         return bool(self.gemini_api_key)
+
+    @computed_field
+    @property
+    def has_openrouter(self) -> bool:
+        return bool(self.openrouter_api_key)
+
+    @computed_field
+    @property
+    def has_neo4j(self) -> bool:
+        return bool(self.neo4j_password)
 
 settings = Settings()
