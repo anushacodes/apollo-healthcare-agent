@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,17 +9,43 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.routers import summarize
+from app.routers import agent as agent_router
+from app.routers import kg as kg_router
+from app.routers import rag as rag_router
 
 logging.basicConfig(level=settings.log_level)
 log = logging.getLogger(__name__)
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    if settings.has_neo4j:
+        try:
+            from app.agent.kg_loader import kg_status
+            status = kg_status()
+            log.info(
+                f"[startup] Neo4j available. "
+                f"Local: {status['local_conditions']} conditions, "
+                f"Neo4j: {status['neo4j_conditions_seeded']} seeded. "
+                f"KG loads on-demand — use POST /api/kg/seed to bulk import."
+            )
+        except Exception as exc:
+            log.warning(f"[startup] Neo4j status check failed (non-fatal): {exc}")
+    else:
+        log.info("[startup] Neo4j not configured — using local JSON KG with on-demand loading")
+
+    yield
+    # Shutdown (nothing to clean up yet)
+
+
 app = FastAPI(
-    title="MedContext — Apollo Clinical Intelligence",
-    description="Multi-agent clinical reasoning API.",
-    version="0.1.0-alpha",
+    title="Apollo — Clinical Intelligence Platform",
+    description="Multi-agent clinical reasoning: RAG, KG, calculators, LLM orchestration.",
+    version="0.2.0-alpha",
+    lifespan=lifespan,
 )
 
-# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins,
@@ -27,10 +54,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Routers
 app.include_router(summarize.router)
+app.include_router(agent_router.router)
+app.include_router(kg_router.router)
+app.include_router(rag_router.router)
 
-# Static frontend
 app.mount("/", StaticFiles(directory="app/frontend", html=True), name="frontend")
 
-log.info("Apollo MedContext API started")
+log.info("Apollo API started")
