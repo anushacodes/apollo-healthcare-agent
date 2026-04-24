@@ -1,0 +1,64 @@
+:root {
+  /* ── Backgrounds ─────────────────────── */
+  --bg-page:     #050B18;
+  --bg-surface:  #0D1626;
+  --bg-raised:   #162032;
+  --bg-card:     rgba(14, 22, 40, 0.80);
+  --bg-hover:    rgba(20, 184, 166, 0.06);
+  --bg-active:   rgba(20, 184, 166, 0.12);
+
+  /* ── Accent — Teal ───────────────────── */
+  --accent:          #14B8A6;
+  --accent-bright:   #2DD4BF;
+  --accent-dim:      rgba(20, 184, 166, 0.15);
+  --accent-glow:     rgba(20, 184, 166, 0.35);
+  --accent-border:   rgba(20, 184, 166, 0.30);
+
+  /* ── Text ────────────────────────────── */
+  --text-primary:   #F1F5F9;
+  --text-secondary: #94A3B8;
+  --text-muted:     #4B5563;
+  --text-accent:    #2DD4BF;
+
+  /* ── Borders ─────────────────────────── */
+  --border:         rgba(255, 255, 255, 0.06);
+  --border-strong:  rgba(255, 255, 255, 0.12);
+
+  /* ── Status ──────────────────────────── */
+  --success:  #10B981;
+  --warning:  #F59E0B;
+  --danger:   #EF4444;
+  --info:     #3B82F6;
+
+  --success-bg:  rgba(16, 185, 129, 0.12);
+  --warning-bg:  rgba(245, 158, 11, 0.12);
+  --danger-bg:   rgba(239, 68, 68, 0.12);
+  --info-bg:     rgba(59, 130, 246, 0.12);
+
+  /* ── Layout ──────────────────────────── */
+  --sidebar-w:    280px;
+  --header-h:     64px;
+  --tab-nav-h:    48px;
+
+  /* ── Typography ──────────────────────── */
+  --font:      'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* ── Radii ───────────────────────────── */
+  --r-sm:  6px;
+  --r-md: 12px;
+  --r-lg: 20px;
+  --r-xl: 28px;
+
+  /* ── Shadows ─────────────────────────── */
+  --shadow-sm:   0 1px 4px  rgba(0,0,0,0.35);
+  --shadow-md:   0 4px 16px rgba(0,0,0,0.45);
+  --shadow-lg:   0 8px 32px rgba(0,0,0,0.55);
+  --shadow-glow: 0 0 24px   rgba(20, 184, 166, 0.22);
+
+  /* ── Transitions ─────────────────────── */
+  --ease:      cubic-bezier(0.4, 0, 0.2, 1);
+  --t-fast:    0.15s;
+  --t-normal:  0.25s;
+  --t-slow:    0.45s;
+}

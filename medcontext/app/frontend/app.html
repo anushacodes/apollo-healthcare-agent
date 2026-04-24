@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apollo — Clinical Intelligence</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="static/css/reset.css">
+  <link rel="stylesheet" href="static/css/variables.css">
+  <link rel="stylesheet" href="static/css/app.css">
+</head>
+<body class="app-body">
+
+  <!-- ═══════════════════════════════════════════
+       Sidebar
+  ════════════════════════════════════════════ -->
+  <aside class="sidebar" id="sidebar">
+
+    <!-- Logo -->
+    <div class="sidebar-logo">
+      <div class="logo-mark">✦</div>
+      <span class="logo-name">Apollo</span>
+      <span class="logo-version">v0.1-alpha</span>
+    </div>
+
+    <!-- Search -->
+    <div class="sidebar-search">
+      <div class="search-wrap">
+        <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd"/>
+        </svg>
+        <input type="search" id="patientSearch" placeholder="Search patients…" autocomplete="off">
+      </div>
+    </div>
+
+    <!-- Patient list -->
+    <div class="sidebar-section-label">Patients</div>
+    <div class="patient-list" id="patientList">
+      <!-- Populated by app.js -->
+    </div>
+
+    <!-- Footer -->
+    <div class="sidebar-footer">
+      <button class="btn-add-patient" id="btnAddPatient">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        Add Patient
+      </button>
+    </div>
+
+  </aside>
+
+  <!-- ═══════════════════════════════════════════
+       Main content
+  ════════════════════════════════════════════ -->
+  <div class="main-content">
+
+    <!-- Empty state (shown before any patient is loaded) -->
+    <div class="empty-state" id="emptyState">
+      <div class="empty-state-icon">🏥</div>
+      <h2>No patient selected</h2>
+      <p>Select a patient from the sidebar or try the demo patient to explore the platform.</p>
+      <div class="empty-state-actions">
+        <a href="?demo=true" class="btn-primary" id="btnDemoFromEmpty">🧬 Try Demo Patient</a>
+        <button class="btn-outline" id="btnUploadFromEmpty">📁 Upload Patient Data</button>
+      </div>
+    </div>
+
+    <!-- Patient view (hidden until a patient is loaded) -->
+    <div class="patient-view" id="patientView" style="display:none;">
+
+      <!-- Demo banner -->
+      <div class="demo-banner" id="demoBanner" style="display:none;">
+        <div class="db-dot"></div>
+        <span class="db-text">Demo Mode</span>
+        <span class="db-sub">— Synthetic patient data · James Hartwell</span>
+        <a href="index.html" style="margin-left:auto;font-size:12px;color:var(--text-muted);">← Back to Home</a>
+      </div>
+
+      <!-- Patient header -->
+      <header class="patient-header" id="patientHeader">
+        <!-- Populated by app.js -->
+      </header>
+
+      <!-- Tab navigation -->
+      <nav class="tab-nav" id="tabNav">
+        <button class="tab-btn active" data-tab="summary">
+          <span class="tab-icon">📋</span> Summary
+        </button>
+        <button class="tab-btn" data-tab="upload">
+          <span class="tab-icon">📁</span> Documents
+        </button>
+        <button class="tab-btn coming-soon" data-tab="ask">
+          <span class="tab-icon">💬</span> Ask
+        </button>
+        <button class="tab-btn coming-soon" data-tab="diagnostics">
+          <span class="tab-icon">🧠</span> Diagnostics
+        </button>
+        <button class="tab-btn coming-soon" data-tab="research">
+          <span class="tab-icon">🔬</span> Research
+        </button>
+      </nav>
+
+      <!-- Tab panels -->
+      <div class="tab-panels" id="tabPanels">
+
+        <!-- Summary tab -->
+        <div class="tab-panel active" id="tab-summary">
+          <!-- Populated by summary.js -->
+          <div style="display:flex;align-items:center;gap:10px;color:var(--text-muted);font-size:13px;">
+            <div class="spinner"></div> Loading summary…
+          </div>
+        </div>
+
+        <!-- Documents / Upload tab -->
+        <div class="tab-panel" id="tab-upload">
+          <!-- Populated by upload.js -->
+        </div>
+
+        <!-- Ask tab — Coming soon -->
+        <div class="tab-panel" id="tab-ask">
+          <div class="coming-soon-panel">
+            <div class="cs-icon-wrap">
+              💬
+              <span class="cs-badge">Soon</span>
+            </div>
+            <h2>Ask the Clinical Agent</h2>
+            <p>
+              A chat interface powered by multi-agent RAG will let you query
+              any aspect of the patient record in natural language — across all
+              uploaded documents simultaneously.
+            </p>
+            <div class="cs-features">
+              <div class="cs-feature">🔍 RAG retrieval</div>
+              <div class="cs-feature">🤖 LangGraph agents</div>
+              <div class="cs-feature">📎 Source citations</div>
+              <div class="cs-feature">🧪 LLM eval judge</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Diagnostics tab — Coming soon -->
+        <div class="tab-panel" id="tab-diagnostics">
+          <div class="coming-soon-panel">
+            <div class="cs-icon-wrap">
+              🧠
+              <span class="cs-badge">Soon</span>
+            </div>
+            <h2>Diagnostic Reasoning</h2>
+            <p>
+              Multi-agent diagnostic reasoning — a retrieval agent, a drug
+              interaction agent, and a diagnostic agent collaborate and
+              challenge each other before producing a consensus.
+            </p>
+            <div class="cs-features">
+              <div class="cs-feature">🩺 Differential diagnosis</div>
+              <div class="cs-feature">💊 Drug interactions</div>
+              <div class="cs-feature">📊 Knowledge graph</div>
+              <div class="cs-feature">✅ Safety checks</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Research tab — Coming soon -->
+        <div class="tab-panel" id="tab-research">
+          <div class="coming-soon-panel">
+            <div class="cs-icon-wrap">
+              🔬
+              <span class="cs-badge">Soon</span>
+            </div>
+            <h2>Research Agent</h2>
+            <p>
+              Automatically surface relevant clinical literature, trials, and
+              guidelines based on the patient's specific diagnoses, medications,
+              and lab trajectory.
+            </p>
+            <div class="cs-features">
+              <div class="cs-feature">📚 PubMed integration</div>
+              <div class="cs-feature">🔗 Clinical guidelines</div>
+              <div class="cs-feature">🧬 Trial matching</div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /tab-panels -->
+    </div><!-- /patient-view -->
+
+  </div><!-- /main-content -->
+
+  <!-- Scripts -->
+  <script src="static/js/demo-data.js"></script>
+  <script src="static/js/summary.js"></script>
+  <script src="static/js/upload.js"></script>
+  <script src="static/js/app.js"></script>
+
+</body>
+</html>
