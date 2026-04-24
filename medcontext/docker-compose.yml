@@ -1,0 +1,26 @@
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    restart: unless-stopped
+
+  langfuse:
+    image: langfuse/langfuse:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=file:/data/langfuse.db
+      - NEXTAUTH_SECRET=local-dev-secret-change-me
+      - NEXTAUTH_URL=http://localhost:3000
+      - SALT=local-dev-salt
+    volumes:
+      - langfuse_data:/data
+    restart: unless-stopped
+
+volumes:
+  qdrant_data:
+  langfuse_data:
