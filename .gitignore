@@ -205,11 +205,7 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
-weekly-plan.md
-Multimodal_RAG_Pipeline.ipynb
 app/.DS_Store
 fREADME.md
-.env.example
-.vscode/settings.json
 .DS_Store
 medcontext/

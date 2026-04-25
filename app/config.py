@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 from pydantic import Field, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -15,38 +14,31 @@ class Settings(BaseSettings):
     )
 
     # LLM API keys
-    groq_api_key: Optional[str] = Field(default=None, alias="GROQ_API_KEY")
-    gemini_api_key: Optional[str] = Field(default=None, alias="GEMINI_API_KEY")
-    openrouter_api_key: Optional[str] = Field(default=None, alias="OPENROUTER_API_KEY")
-    tavily_api_key: Optional[str] = Field(default=None, alias="TAVILY_API_KEY")
+    groq_api_key: str | None = Field(default=None, alias="GROQ_API_KEY")
+    gemini_api_key: str | None = Field(default=None, alias="GEMINI_API_KEY")
+    openrouter_api_key: str | None = Field(default=None, alias="OPENROUTER_API_KEY")
+    tavily_api_key: str | None = Field(default=None, alias="TAVILY_API_KEY")
 
 
-    # Model choices per role
-    # Groq — strict routing/formatting (Orchestrator, Summarizer)
     groq_model: str = Field(default="llama-3.3-70b-versatile", alias="GROQ_MODEL")
-    # Gemini 1.5 Flash — large context window (Diagnosis, Eval agents)
+    groq_eval_model: str = Field(default="llama-3.1-8b-instant", alias="GROQ_EVAL_MODEL")
     gemini_model: str = Field(default="gemini-2.0-flash", alias="GEMINI_MODEL")
-    # OpenRouter — simpler sub-tasks / final fallback
     openrouter_model: str = Field(default="meta-llama/llama-3-8b-instruct:free", alias="OPENROUTER_MODEL")
 
 
-    # Vector store
     qdrant_url: str = Field(default="http://localhost:6333", alias="QDRANT_URL")
-    qdrant_api_key: Optional[str] = Field(default=None, alias="QDRANT_API_KEY")
+    qdrant_api_key: str | None = Field(default=None, alias="QDRANT_API_KEY")
 
-    # Neo4j knowledge graph
     neo4j_uri: str = Field(default="bolt://localhost:7687", alias="NEO4J_URI")
     neo4j_user: str = Field(default="neo4j", alias="NEO4J_USER")
-    neo4j_password: Optional[str] = Field(default=None, alias="NEO4J_PASSWORD")
+    neo4j_password: str | None = Field(default=None, alias="NEO4J_PASSWORD")
 
-    # Observability
-    langfuse_public_key: Optional[str] = Field(default=None, alias="LANGFUSE_PUBLIC_KEY")
-    langfuse_secret_key: Optional[str] = Field(default=None, alias="LANGFUSE_SECRET_KEY")
+    langfuse_public_key: str | None = Field(default=None, alias="LANGFUSE_PUBLIC_KEY")
+    langfuse_secret_key: str | None = Field(default=None, alias="LANGFUSE_SECRET_KEY")
     langfuse_host: str = Field(default="http://localhost:3001", alias="LANGFUSE_HOST")
 
-    # Database
     database_url: str = Field(default="sqlite:///./medcontext.db", alias="DATABASE_URL")
-    database_key: Optional[str] = Field(default=None, alias="DATABASE_KEY")
+    database_key: str | None = Field(default=None, alias="DATABASE_KEY")
 
     # App / filesystem
     data_root: str = Field(default="data", alias="DATA_ROOT")
