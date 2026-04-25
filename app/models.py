@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 # Enums
 class LabFlag(str, Enum):
@@ -106,8 +106,7 @@ class PatientSummary(BaseModel):
     clinical_flags: list[ClinicalFlag] = Field(default_factory=list)
     clinical_summary: Optional[ClinicalSummary] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # Patient top-level model
 class Patient(BaseModel):
