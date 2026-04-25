@@ -7,14 +7,15 @@ from datetime import datetime, timezone
 from typing import Any
 
 from groq import Groq
-import google.generativeai as genai
+from google import genai
+from google.genai import types as genai_types
 
 from app.config import settings
 from app.models import ClinicalSummary
+from app.agent.sqlite_cache import get_summary, hash_payload, set_summary
 
 log = logging.getLogger(__name__)
 
-# Prompts
 _SYSTEM_PROMPT = """\
 You are a senior clinical documentation specialist. Your task is to read
 aggregated patient information and produce a structured clinical summary.
@@ -54,7 +55,6 @@ _USER_TEMPLATE = """\
 Generate the structured clinical summary JSON described in the system prompt.
 """
 
-# Context builder
 def build_context(patient_data: dict) -> str:
     lines: list[str] = []
     p = patient_data.get("patient", {})
@@ -105,7 +105,6 @@ def build_context(patient_data: dict) -> str:
 
     return "\n".join(lines)
 
-# LLM calls
 def _call_groq(context: str) -> dict[str, Any]:
     client = Groq(api_key=settings.groq_api_key)
     response = client.chat.completions.create(
@@ -121,29 +120,111 @@ def _call_groq(context: str) -> dict[str, Any]:
     return json.loads(response.choices[0].message.content)
 
 def _call_gemini(context: str) -> dict[str, Any]:
-    genai.configure(api_key=settings.gemini_api_key)
-    model = genai.GenerativeModel(
-        model_name=settings.gemini_model,
-        system_instruction=_SYSTEM_PROMPT,
-        generation_config=genai.types.GenerationConfig(
+    client = genai.Client(api_key=settings.gemini_api_key)
+    response = client.models.generate_content(
+        model=settings.gemini_model,
+        contents=_USER_TEMPLATE.format(context=context),
+        config=genai_types.GenerateContentConfig(
+            system_instruction=_SYSTEM_PROMPT,
             temperature=0.1,
             response_mime_type="application/json",
         ),
     )
-    response = model.generate_content(_USER_TEMPLATE.format(context=context))
     return json.loads(response.text)
 
-# Public API
-def run_summarizer(patient_data: dict) -> ClinicalSummary:
+def _summary_cache_key(patient_data: dict) -> str:
+    relevant = {
+        "patient": patient_data.get("patient", {}),
+        "summary": patient_data.get("summary", patient_data),
+        "agent_diagnoses": patient_data.get("agent_diagnoses", {}),
+        "calculator_results": patient_data.get("calculator_results", []),
+        "drug_interactions": patient_data.get("drug_interactions", {}),
+    }
+    return hash_payload(relevant)
+
+
+def _fallback_summary(patient_data: dict, patient_id: str, model_used: str) -> ClinicalSummary:
+    s = patient_data.get("summary", patient_data)
+    diagnoses = s.get("diagnoses", [])
+    medications = s.get("medications", [])
+    flags = s.get("clinical_flags", [])
+
+    primary_dx = (
+        diagnoses[0].get("name", "the current condition")
+        if diagnoses and isinstance(diagnoses[0], dict)
+        else str(diagnoses[0]) if diagnoses else "the current condition"
+    )
+    narrative = s.get("summary_narrative", "").strip()
+    current_medications = []
+    for med in medications:
+        if isinstance(med, dict) and med.get("name"):
+            details = ", ".join(filter(None, [med.get("dose", ""), med.get("frequency", "")]))
+            current_medications.append(f"{med['name']} - {details}" if details else med["name"])
+    if not current_medications:
+        current_medications = [str(m) for m in medications[:8]]
+
+    key_concerns = [
+        f.get("text", str(f))
+        for f in flags[:5]
+        if isinstance(f, dict) or str(f).strip()
+    ]
+    follow_up_actions = []
+    if diagnoses:
+        follow_up_actions.append(f"Review active management plan for {primary_dx}.")
+    if s.get("lab_results"):
+        follow_up_actions.append("Trend the latest abnormal labs and repeat if clinically indicated.")
+    if flags:
+        follow_up_actions.append("Address flagged safety issues before the next treatment change.")
+    follow_up_actions = follow_up_actions[:5]
+
+    return ClinicalSummary(
+        chief_complaint=narrative.split(".")[0].strip() or f"Follow-up for {primary_dx}.",
+        history_of_present_illness=narrative or f"The patient has active issues related to {primary_dx}.",
+        clinical_assessment=(
+            f"Known active problems include {', '.join(str(d.get('name', d)) for d in diagnoses[:4])}."
+            if diagnoses else "Active clinical problems are summarised from the available record."
+        ),
+        current_medications=current_medications,
+        patient_facing_summary=(
+            f"You are being treated for {primary_dx}. The team is watching your symptoms, medicines, and recent test results closely."
+        ),
+        key_concerns=key_concerns,
+        follow_up_actions=follow_up_actions,
+        generated_at=datetime.now(timezone.utc),
+        model_used=model_used,
+        patient_id=patient_id,
+    )
+
+
+def run_summarizer(
+    patient_data: dict,
+    *,
+    force_stub: bool = False,
+    skip_cache: bool = False,
+) -> ClinicalSummary:
     t0 = time.perf_counter()
     patient_id = patient_data.get("patient_id", "unknown")
+    cache_key = _summary_cache_key(patient_data)
+
+    if not skip_cache and not force_stub:
+        cached = get_summary(patient_id, cache_key)
+        if cached:
+            return ClinicalSummary.model_validate(cached)
+
     context = build_context(patient_data)
+
+    if force_stub:
+        summary = _fallback_summary(patient_data, patient_id, "stub/heuristic")
+        set_summary(patient_id, cache_key, summary.model_dump(mode="json"))
+        return summary
 
     if settings.has_groq:
         try:
             log.info(f"[summarizer] Trying Groq ({settings.groq_model}) for {patient_id}")
             raw = _call_groq(context)
-            return _validate(raw, patient_id, f"groq/{settings.groq_model}", t0)
+            summary = _validate(raw, patient_id, f"groq/{settings.groq_model}", t0)
+            set_summary(patient_id, cache_key, summary.model_dump(mode="json"))
+            return summary
         except Exception as exc:
             log.warning(f"[summarizer] Groq failed: {exc} — falling back to Gemini")
 
@@ -151,11 +232,15 @@ def run_summarizer(patient_data: dict) -> ClinicalSummary:
         try:
             log.info(f"[summarizer] Trying Gemini ({settings.gemini_model}) for {patient_id}")
             raw = _call_gemini(context)
-            return _validate(raw, patient_id, f"gemini/{settings.gemini_model}", t0)
+            summary = _validate(raw, patient_id, f"gemini/{settings.gemini_model}", t0)
+            set_summary(patient_id, cache_key, summary.model_dump(mode="json"))
+            return summary
         except Exception as exc:
             log.warning(f"[summarizer] Gemini failed: {exc}")
 
-    raise RuntimeError("All LLM providers failed or are unavailable.")
+    summary = _fallback_summary(patient_data, patient_id, "heuristic/fallback")
+    set_summary(patient_id, cache_key, summary.model_dump(mode="json"))
+    return summary
 
 def _validate(raw: dict[str, Any], patient_id: str, model_used: str, t0: float) -> ClinicalSummary:
     elapsed = (time.perf_counter() - t0) * 1000

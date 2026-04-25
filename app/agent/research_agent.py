@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import json
 import logging
+import threading
 import time
 import xml.etree.ElementTree as ET
 from typing import Any
@@ -10,20 +10,21 @@ import httpx
 
 from app.ingestion.chunker import chunk_text
 from app.ingestion.embedder import embed_chunks, search_chunks
+from app.agent.sqlite_cache import (
+    get_pubmed,
+    hash_text,
+    is_document_indexed,
+    mark_document_indexed,
+    set_pubmed,
+)
 
 log = logging.getLogger(__name__)
 
 _PUBMED_BASE    = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
 _MAX_RESULTS    = 8      # abstracts fetched per query
-_CACHE_TTL_SEC  = 3600   # 1-hour cache per (patient_id, query)
 _RATE_LIMIT_SEC = 0.34   # ~3 req/s (PubMed free tier)
-
-# In-memory cache: {cache_key: (timestamp, results)}
-_cache: dict[str, tuple[float, list[dict]]] = {}
-
-
-def _cache_key(patient_id: str, query: str) -> str:
-    return f"{patient_id}::{query.lower().strip()}"
+_INFLIGHT_PREFETCHES: set[str] = set()
+_PREFETCH_LOCK = threading.Lock()
 
 
 def _build_query(diagnoses: list[str], free_text: str = "") -> str:
@@ -133,41 +134,22 @@ def fetch_pubmed(
     if not query:
         return []
 
-    key = _cache_key(patient_id, query)
-    now = time.time()
-    if key in _cache:
-        ts, cached = _cache[key]
-        if now - ts < _CACHE_TTL_SEC:
-            log.info("[research] Cache hit for patient %s", patient_id)
-            return cached
+    # 1. Check persistent SQLite cache first
+    cached = get_pubmed(patient_id, query)
+    if cached is not None:
+        log.info("[research] SQLite cache hit for patient %s", patient_id)
+        _ensure_papers_embedded(patient_id, cached)
+        return cached
 
     log.info("[research] Fetching PubMed: %s", query[:120])
     pmids   = _search_pmids(query)
     papers  = _fetch_abstracts(pmids)
 
     if papers:
-        # Embed abstracts into Qdrant for hybrid retrieval
-        chunks = []
-        for paper in papers:
-            chunks.extend(chunk_text(
-                text=f"{paper['title']}\n\n{paper['abstract']}",
-                patient_id=patient_id,
-                source_doc=f"pubmed:{paper['pmid']}",
-                doc_type="pubmed_abstract",
-            ))
-            # Attach full paper metadata to each chunk
-            for c in chunks[-2:]:
-                c["pmid"]    = paper["pmid"]
-                c["doi"]     = paper["doi"]
-                c["title"]   = paper["title"]
-                c["journal"] = paper["journal"]
-                c["year"]    = paper["year"]
-                c["url"]     = paper["url"]
+        _ensure_papers_embedded(patient_id, papers)
 
-        embed_chunks(chunks)
-        log.info("[research] Embedded %d chunks from %d papers", len(chunks), len(papers))
-
-    _cache[key] = (now, papers)
+    # 2. Save fetched papers to persistent cache
+    set_pubmed(patient_id, query, papers)
     return papers
 
 
@@ -178,3 +160,75 @@ def search_research(
 ) -> list[dict[str, Any]]:
     """Search previously embedded PubMed abstracts for a patient."""
     return search_chunks(query, patient_id, top_k=top_k, doc_type="pubmed_abstract")
+
+
+def _ensure_papers_embedded(patient_id: str, papers: list[dict[str, Any]]) -> int:
+    chunks_to_embed: list[dict[str, Any]] = []
+    chunk_counts: dict[str, int] = {}
+    papers_indexed = 0
+
+    for paper in papers:
+        source_doc = f"pubmed:{paper['pmid']}"
+        content_hash = hash_text(f"{paper.get('title', '')}\n{paper.get('abstract', '')}")
+        if is_document_indexed(patient_id, source_doc, content_hash):
+            papers_indexed += 1
+            continue
+
+        paper_chunks = chunk_text(
+            text=f"{paper['title']}\n\n{paper['abstract']}",
+            patient_id=patient_id,
+            source_doc=source_doc,
+            doc_type="pubmed_abstract",
+        )
+        for chunk in paper_chunks:
+            chunk["pmid"] = paper["pmid"]
+            chunk["doi"] = paper["doi"]
+            chunk["title"] = paper["title"]
+            chunk["journal"] = paper["journal"]
+            chunk["year"] = paper["year"]
+            chunk["url"] = paper["url"]
+        chunks_to_embed.extend(paper_chunks)
+        chunk_counts[source_doc] = len(paper_chunks)
+
+    if chunks_to_embed:
+        embed_chunks(chunks_to_embed)
+
+    for paper in papers:
+        source_doc = f"pubmed:{paper['pmid']}"
+        content_hash = hash_text(f"{paper.get('title', '')}\n{paper.get('abstract', '')}")
+        if source_doc not in chunk_counts and is_document_indexed(patient_id, source_doc, content_hash):
+            continue
+        mark_document_indexed(
+            patient_id,
+            source_doc,
+            content_hash,
+            chunk_count=chunk_counts.get(source_doc, 0),
+        )
+
+    if chunks_to_embed:
+        log.info("[research] Embedded %d chunks from %d paper(s)", len(chunks_to_embed), len(papers))
+
+    return papers_indexed + len(papers)
+
+
+def prefetch_pubmed_background(patient_id: str, diagnoses: list[str], question: str = "") -> None:
+    cache_key = f"{patient_id}:{_build_query(diagnoses, question)}"
+    if not diagnoses or not cache_key.strip():
+        return
+
+    with _PREFETCH_LOCK:
+        if cache_key in _INFLIGHT_PREFETCHES:
+            return
+        _INFLIGHT_PREFETCHES.add(cache_key)
+
+    def _runner() -> None:
+        try:
+            fetch_pubmed(patient_id, diagnoses, question)
+        except Exception as exc:
+            log.warning("[research] background prefetch failed: %s", exc)
+        finally:
+            with _PREFETCH_LOCK:
+                _INFLIGHT_PREFETCHES.discard(cache_key)
+
+    thread = threading.Thread(target=_runner, name=f"pubmed-prefetch-{patient_id}", daemon=True)
+    thread.start()
