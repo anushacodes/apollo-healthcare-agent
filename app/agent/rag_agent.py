@@ -158,7 +158,8 @@ async def _ensure_patient_documents_embedded(patient_id: str, source_docs: dict[
         if not text:
             continue
         content_hash = hash_text(text)
-        if is_document_indexed(patient_id, label, content_hash):
+        already_indexed = await asyncio.to_thread(is_document_indexed, patient_id, label, content_hash)
+        if already_indexed:
             continue
 
         doc_chunks = chunk_text(text, patient_id, label)
@@ -172,14 +173,15 @@ async def _ensure_patient_documents_embedded(patient_id: str, source_docs: dict[
         if not text:
             continue
         content_hash = hash_text(text)
-        if is_document_indexed(patient_id, label, content_hash):
-            continue
-        mark_document_indexed(
-            patient_id,
-            label,
-            content_hash,
-            chunk_count=sum(1 for chunk in chunks_to_embed if chunk["source_doc"] == label),
-        )
+        still_unindexed = not await asyncio.to_thread(is_document_indexed, patient_id, label, content_hash)
+        if still_unindexed:
+            await asyncio.to_thread(
+                mark_document_indexed,
+                patient_id,
+                label,
+                content_hash,
+                chunk_count=sum(1 for chunk in chunks_to_embed if chunk["source_doc"] == label),
+            )
 
     return new_docs
 
@@ -695,7 +697,7 @@ async def run_rag_streaming(
     Caches final answers so repeated questions are instant.
     """
     cache_patient_id = _patient_cache_id(patient_id, patient_data)
-    cached_answer = get_answer(cache_patient_id, question)
+    cached_answer = await asyncio.to_thread(get_answer, cache_patient_id, question)
     if cached_answer:
         log.info("[rag] SQLite Answer cache hit for patient %s", patient_id)
         await asyncio.sleep(2)
@@ -781,7 +783,7 @@ async def run_rag_streaming(
                     "follow_ups":     follow_ups,
                 }
                 if not node_state.get("is_refusal", True):
-                    set_answer(cache_patient_id, question, result_data)
+                    await asyncio.to_thread(set_answer, cache_patient_id, question, result_data)
 
                 yield {
                     "type":    "patch_followups",
