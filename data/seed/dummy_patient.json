@@ -5,7 +5,14 @@
     "name": "James Hartwell",
     "dob": "1966-03-14",
     "mrn": "JH-001",
-    "age": 58
+    "age": 58,
+    "sex": "male"
+  },
+  "calculator_hints": {
+    "race": "white",
+    "total_cholesterol": 232.0,
+    "hdl_cholesterol": 35.0,
+    "systolic_bp": 142.0
   },
   "summary": {
     "patient_id": "demo-jh-001",

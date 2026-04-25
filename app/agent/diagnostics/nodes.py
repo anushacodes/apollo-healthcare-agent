@@ -287,7 +287,11 @@ def tool_node(state: AgentState) -> AgentState:
         try:
             results.append({"tool": tool_name, "result": tool_fn.invoke(call.get("params", {}))})
         except Exception as exc:
-            results.append({"tool": tool_name, "error": str(exc)})
+            err_str = str(exc)
+            if "validation error" in err_str.lower():
+                results.append({"tool": tool_name, "error": "Insufficient patient data to run this calculator (missing required lab values or demographics)."})
+            else:
+                results.append({"tool": tool_name, "error": err_str})
 
     tool_names  = [r["tool"] for r in results]
     audit_entry = f"Tool Node: ran {len(results)} calculator(s): {', '.join(tool_names) or 'none'}."
