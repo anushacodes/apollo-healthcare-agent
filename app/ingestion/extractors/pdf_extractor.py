@@ -8,8 +8,6 @@ from pathlib import Path
 from typing import Optional
 
 from docling.document_converter import DocumentConverter
-from docling.datamodel.base_models import InputFormat
-import fitz
 
 from app.ingestion.extractors import (
     ExtractionResult,
@@ -36,16 +34,11 @@ def parse_pdf(file_path: str, *, out_dir: Optional[str] = None) -> ExtractionRes
 
     base_name = path.stem
     md_text, tables, sections, page_count = _export_artefacts(doc, out_dir, base_name)
-    figure_captions = _generate_figure_captions(str(path), page_count)
 
     text_volume = len(md_text)
     needs_ocr_fallback = text_volume < OCR_THRESHOLD
 
-    full_text_parts = [md_text]
-    if figure_captions:
-        full_text_parts.append("\n\n--- FIGURE CAPTIONS (VLM-generated) ---\n")
-        full_text_parts.extend(f"[Page {p}: {cap}]" for p, cap in figure_captions.items())
-    full_text = "\n".join(full_text_parts)
+    full_text = md_text
 
     notes = _note_gen.generate(text=full_text, confidence=1.0)
     if needs_ocr_fallback:
@@ -78,7 +71,6 @@ def parse_pdf(file_path: str, *, out_dir: Optional[str] = None) -> ExtractionRes
             "page_count": page_count,
             "format": "pdf",
             "text_volume": text_volume,
-            "figure_captions": figure_captions,
             "docling_available": True,
         },
         ocr_notes=notes,
@@ -173,20 +165,3 @@ def _count_pages(body: list) -> int:
             if isinstance(p, int) and p > max_page:
                 max_page = p
     return max_page
-
-def _generate_figure_captions(pdf_path: str, page_count: int) -> dict[int, str]:
-    captions: dict[int, str] = {}
-    pages_to_caption = list(range(1, min(page_count, _MAX_CAPTION_PAGES) + 1))
-
-    try:
-        doc = fitz.open(pdf_path)
-        for page_num in pages_to_caption:
-            page = doc[page_num - 1]
-            pix = page.get_pixmap(dpi=150)
-            img_bytes = pix.tobytes("png")
-            captions[page_num] = "[Figure: page preview — VLM caption not generated]"
-        doc.close()
-    except Exception as exc:
-        log.warning(f"Figure caption generation failed: {exc}")
-
-    return captions

@@ -11,7 +11,6 @@ from typing import Optional
 from app.ingestion.extractors import (
     ExtractionResult,
     OCRNoteGenerator,
-    format_extraction_header,
 )
 
 log = logging.getLogger(__name__)
@@ -63,9 +62,9 @@ def parse_transcript(file_path: str, *, out_dir: Optional[str] = None) -> Extrac
     header_lines = [
         "============================================================",
         f"  WHISPER TRANSCRIPTION OUTPUT — SOURCE: {path.name}",
-        f"  MODEL: openai/whisper-base",
+        "  MODEL: openai/whisper-base",
         f"  DURATION: {duration_str}",
-        f"  LANGUAGE: en (confidence 0.99)",
+        "  LANGUAGE: en (confidence 0.99)",
         f"  FILE HASH: sha256:{'a' * 32}...   (computed at ingest time)",
         "============================================================",
         "",
@@ -120,12 +119,14 @@ def _parse_turns(text: str) -> list[TranscriptTurn]:
             speaker=speaker,
             text=content.replace("\n", " "),
         ))
-    if turns: return turns
+    if turns:
+        return turns
 
     for m in _SPK_PATTERN.finditer(text):
         speaker, content = m.group(1).strip(), m.group(2).strip()
         turns.append(TranscriptTurn(timestamp_sec=None, speaker=speaker, text=content))
-    if turns: return turns
+    if turns:
+        return turns
 
     turns.append(TranscriptTurn(timestamp_sec=None, speaker="", text=text))
     return turns
@@ -142,7 +143,8 @@ def _ts_to_sec(ts: str) -> float:
 
 def _estimate_duration(turns: list[TranscriptTurn], raw: str) -> Optional[float]:
     ts_matches = _TS_PATTERN.findall(raw)
-    if not ts_matches: return None
+    if not ts_matches:
+        return None
     last = ts_matches[-1]
     h, m, s = int(last[0]), int(last[1]), int(last[2]) if last[2] else 0
     return h * 3600 + m * 60 + s
@@ -150,7 +152,8 @@ def _estimate_duration(turns: list[TranscriptTurn], raw: str) -> Optional[float]
 def _format_duration(seconds: float) -> str:
     m, s = divmod(int(seconds), 60)
     h, m = divmod(m, 60)
-    if h: return f"{h}h {m}m {s}s"
+    if h:
+        return f"{h}h {m}m {s}s"
     return f"{m}m {s}s"
 
 def _turns_to_sections(turns: list[TranscriptTurn]) -> list[dict]:
