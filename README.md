@@ -28,6 +28,20 @@ Two independent pipelines run off the same patient record:
 
 ---
 
+## Clinical Focus & Use Case
+
+Apollo is specifically designed to handle **complex, chronic care patients**.
+
+- **Primary Clinical Focus:** Rheumatology, systemic autoimmune diseases, and cardiovascular medicine.
+- **Knowledge Graph:** The underlying Neo4j graph maps 25 complex conditions, with deep relationship mapping for diseases like Systemic Lupus Erythematosus (SLE), Lupus Nephritis, and Antiphospholipid Syndrome (APS).
+- **Embedded Calculators:** The orchestrator agent triggers specific calculators that target high-risk complications frequently seen in these chronic profiles:
+  - **ASCVD Risk:** 10-year cardiovascular risk modeling.
+  - **Wells DVT Score:** Deep vein thrombosis probability (crucial for clotting disorders like APS).
+  - **CHA₂DS₂-VASc:** Stroke risk assessment for atrial fibrillation.
+- **Target User:** Specialists (Rheumatologists, Cardiologists, Internists) managing long-term patients with dense clinical histories spanning dozens of clinic letters, lab reports, and imaging results.
+
+---
+
 ## Stack
 
 | | |
@@ -91,10 +105,10 @@ app/
 └── main.py
 
 assets/
-├── architecture_flowchart.png # system architecture diagram
-└── architecture_flowchart.mermaid
-data/seed/                     # James Hartwell demo patient files
-kg/                            # 25 condition JSON files
+├── ask_ui.png                 # home UI screenshot
+└── flowchart.png              # system architecture diagram
+data/seed/                     # demo patient files
+knowledge_graph/               # 25 condition JSON files
 tests/                         # pipeline smoke tests
 docker-compose.yml
 ```
