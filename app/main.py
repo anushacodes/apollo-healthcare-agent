@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
+from app.middleware import RequestContextMiddleware
 from app.routers import summarize
 from app.routers import agent as agent_router
 from app.routers import kg as kg_router
@@ -35,6 +36,17 @@ async def lifespan(app: FastAPI):
     else:
         log.info("[startup] Neo4j not configured — using local JSON KG with on-demand loading")
 
+    # Pre-load the sentence-transformers encoder once so the first request is instant.
+    # This also warms the Qdrant connection so the first query doesn't pay a cold-start penalty.
+    try:
+        import asyncio
+        from app.ingestion.embedder import _get_encoder, _get_client
+        await asyncio.to_thread(_get_encoder)
+        await asyncio.to_thread(_get_client)
+        log.info("[startup] Embedding model and Qdrant client pre-loaded.")
+    except Exception as exc:
+        log.warning("[startup] Embedding pre-load failed (non-fatal): %s", exc)
+
     yield
     # Shutdown (nothing to clean up yet)
 
@@ -53,6 +65,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(RequestContextMiddleware)
 
 app.include_router(summarize.router)
 app.include_router(agent_router.router)
