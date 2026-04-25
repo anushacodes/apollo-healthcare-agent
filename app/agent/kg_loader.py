@@ -5,8 +5,12 @@ import logging
 from pathlib import Path
 from typing import Any
 
-import httpx
-from neo4j import GraphDatabase, Driver
+try:
+    from neo4j import GraphDatabase, Driver
+    _NEO4J_AVAILABLE = True
+except ImportError:
+    _NEO4J_AVAILABLE = False
+    Driver = None  # type: ignore
 
 from app.config import settings
 
@@ -74,7 +78,7 @@ RETURN count(c) AS n
 
 def _get_driver() -> Driver | None:
     global _driver, _driver_failed
-    if _driver_failed or not settings.has_neo4j:
+    if not _NEO4J_AVAILABLE or _driver_failed or not settings.has_neo4j:
         return None
     if _driver is not None:
         return _driver
