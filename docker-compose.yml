@@ -4,6 +4,8 @@ services:
     ports:
       - "8000:8000"
     env_file: .env
+    environment:
+      - NEO4J_URI=bolt://neo4j:7687
     depends_on:
       - qdrant
       - neo4j
