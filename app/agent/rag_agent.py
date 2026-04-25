@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from typing import Any, AsyncGenerator, TypedDict
@@ -9,14 +10,19 @@ from langgraph.graph import StateGraph, END
 
 from app.config import settings
 from app.ingestion.chunker import chunk_text
-from app.ingestion.embedder import search_chunks, embed_chunks
+from app.ingestion.embedder import search_chunks_async, embed_chunks_async
 from app.agent.research_agent import fetch_pubmed, search_research
 from app.agent.eval_agent import run_eval
+from app.agent.sqlite_cache import (
+    get_answer,
+    hash_payload,
+    hash_text,
+    is_document_indexed,
+    mark_document_indexed,
+    set_answer,
+)
 
 log = logging.getLogger(__name__)
-
-# In-memory answer cache: (patient_id, question_lower) → final response
-_answer_cache: dict[tuple, dict] = {}
 
 # ── State ─────────────────────────────────────────────────────────────────
 
@@ -38,9 +44,21 @@ class RAGState(TypedDict):
     citations:           list[dict]
     error:               str | None
     thinking_log:        list[dict]
+    follow_ups:          list[str]
 
 
 # ── Prompts ───────────────────────────────────────────────────────────────
+
+_FOLLOW_UP_PROMPT = """\
+You are an expert clinical AI. Based on the RAG context and the answer just provided,
+generate 3 insightful, dynamic follow-up questions the clinician might want to ask next.
+Make them highly specific to the patient's condition, recent labs, or the provided research.
+
+Return ONLY valid JSON:
+{
+  "follow_up_questions": ["Question 1", "Question 2", "Question 3"]
+}
+"""
 
 _ROUTER_PROMPT = """\
 You are a clinical query router. Given a patient question, decide:
@@ -58,17 +76,20 @@ Return ONLY valid JSON:
 """
 
 _GENERATOR_PROMPT = """\
-You are a clinical research assistant. Answer the question using the context chunks below.
+You are a clinical decision support assistant helping a clinician understand their patient.
+Answer the question directly and concisely, like a knowledgeable clinical colleague.
 
 RULES:
-1. Use information from the CONTEXT CHUNKS.
-2. Cite every factual claim: [1], [2], etc.
-3. Be concise — use bullet points where appropriate.
-4. You MAY use your clinical knowledge to connect and explain information from the chunks,
-   but every specific fact (dosing, guidelines, study results) MUST come from a chunk.
-5. If chunks contain no relevant information, say so clearly.
+1. Answer the clinical question directly. NEVER say "according to the chunks",
+   "the context shows", "based on the provided information", "the context chunks",
+   or any similar meta-language. Just answer.
+2. Lead with the answer. If data is missing, mention it briefly at the END — not the front.
+3. Use bullet points for lists of findings; prose for explanations.
+4. Cite specific data points inline [1], [2] etc. — but only when referencing a specific
+   number, study finding, or guideline. Do not cite general clinical knowledge.
+5. If the information is genuinely not available, say so in one sentence at the end.
 
-CONTEXT CHUNKS:
+PATIENT INFORMATION AND RESEARCH:
 {chunks}
 
 QUESTION: {question}
@@ -117,6 +138,50 @@ def _format_chunks(chunks: list[dict]) -> str:
 
 def _ev(node: str, etype: str, message: str, data: dict | None = None) -> dict:
     return {"node": node, "type": etype, "message": message, "data": data or {}}
+
+
+def _patient_cache_id(patient_id: str, patient_data: dict) -> str:
+    fingerprint = hash_payload(
+        {
+            "patient": patient_data.get("patient", {}),
+            "summary": patient_data.get("summary", {}),
+        }
+    )[:12]
+    return f"{patient_id}:{fingerprint}"
+
+
+async def _ensure_patient_documents_embedded(patient_id: str, source_docs: dict[str, str]) -> int:
+    chunks_to_embed = []
+    new_docs = 0
+
+    for label, text in source_docs.items():
+        if not text:
+            continue
+        content_hash = hash_text(text)
+        if is_document_indexed(patient_id, label, content_hash):
+            continue
+
+        doc_chunks = chunk_text(text, patient_id, label)
+        chunks_to_embed.extend(doc_chunks)
+        new_docs += 1
+
+    if chunks_to_embed:
+        await embed_chunks_async(chunks_to_embed)
+
+    for label, text in source_docs.items():
+        if not text:
+            continue
+        content_hash = hash_text(text)
+        if is_document_indexed(patient_id, label, content_hash):
+            continue
+        mark_document_indexed(
+            patient_id,
+            label,
+            content_hash,
+            chunk_count=sum(1 for chunk in chunks_to_embed if chunk["source_doc"] == label),
+        )
+
+    return new_docs
 
 
 # ── Web search fallback ───────────────────────────────────────────────────
@@ -224,37 +289,45 @@ def query_router_node(state: RAGState) -> RAGState:
             "thinking_log": state["thinking_log"] + [thinking, result]}
 
 
-def patient_retriever_node(state: RAGState) -> RAGState:
+async def patient_retriever_node(state: RAGState) -> RAGState:
     if state["route"] == "research":
         return state
 
     log.info("[rag] patient_retriever starting")
     thinking = _ev("patient_retriever", "thinking",
-                   f"Searching uploaded patient documents...")
+                   "Searching uploaded patient documents...")
 
     source_docs = state["patient_data"].get("source_documents", {})
     if source_docs:
-        to_embed = []
-        for label, text in source_docs.items():
-            if text:
-                to_embed.extend(chunk_text(text, state["patient_id"], label))
-        if to_embed:
-            embed_chunks(to_embed)
+        new_docs = await _ensure_patient_documents_embedded(state["patient_id"], source_docs)
+    else:
+        new_docs = 0
 
-    results = search_chunks(state["reformulated_query"], state["patient_id"], top_k=8)
+    results = await search_chunks_async(state["reformulated_query"], state["patient_id"], top_k=8)
     sources = list({c.get("source_doc","") for c in results})
+    if results:
+        message = f"Found {len(results)} chunks across {len(sources)} document(s)"
+        if new_docs:
+            message += f"; indexed {new_docs} new document(s)"
+    else:
+        message = (
+            f"No relevant chunks in patient documents; indexed {new_docs} new document(s)"
+            if new_docs else "No relevant chunks in patient documents"
+        )
 
-    result = _ev("patient_retriever", "result",
-                 f"Found {len(results)} chunks across {len(sources)} document(s)" if results
-                 else "No relevant chunks in patient documents",
-                 {"chunk_count": len(results), "sources": sources})
+    result = _ev(
+        "patient_retriever",
+        "result",
+        message,
+        {"chunk_count": len(results), "sources": sources, "new_docs_indexed": new_docs},
+    )
 
     return {**state,
             "patient_chunks": results,
             "thinking_log": state["thinking_log"] + [thinking, result]}
 
 
-def research_fetcher_node(state: RAGState) -> RAGState:
+async def research_fetcher_node(state: RAGState) -> RAGState:
     if state["route"] == "patient_docs":
         return state
 
@@ -265,15 +338,20 @@ def research_fetcher_node(state: RAGState) -> RAGState:
                    f"Querying PubMed for: {', '.join(diagnoses[:2])}...",
                    {"diagnoses": diagnoses[:3]})
 
-    # Always re-embed on cache miss; if cache hit, still search (embedding may have happened)
-    papers  = fetch_pubmed(state["patient_id"], diagnoses, state["reformulated_query"])
-    results = search_research(state["patient_id"], state["reformulated_query"], top_k=6)
+    # fetch_pubmed hits the SQLite cache first — if the background thread already
+    # ran it (fired from WebSocket open), this returns instantly with 0 network calls.
+    await asyncio.to_thread(fetch_pubmed, state["patient_id"], diagnoses, state["reformulated_query"])
+    results = await search_chunks_async(state["reformulated_query"], state["patient_id"], top_k=6, doc_type="pubmed_abstract")
 
     journals = list({c.get("journal","") for c in results if c.get("journal")})
     result = _ev("research_fetcher", "result",
-                 f"Retrieved {len(papers)} papers, {len(results)} relevant chunks"
-                 + (f" ({', '.join(journals[:3])})" if journals else ""),
-                 {"paper_count": len(papers), "chunk_count": len(results), "journals": journals})
+                 (
+                     f"Found {len(results)} relevant research chunk(s)"
+                     + (f" ({', '.join(journals[:3])})" if journals else "")
+                     if results
+                     else "No indexed PubMed chunks yet; background fetch started"
+                 ),
+                 {"chunk_count": len(results), "journals": journals, "background_prefetch": True})
 
     return {**state,
             "research_chunks": results,
@@ -307,15 +385,122 @@ def web_search_node(state: RAGState) -> RAGState:
             "thinking_log": state["thinking_log"] + [thinking, result]}
 
 
+def _build_patient_summary_chunk(patient_data: dict, patient_id: str) -> dict | None:
+    """
+    Convert the structured patient summary into a synthetic RAG chunk.
+    This ensures the generator always has access to the patient's structured
+    data (labs, meds, diagnoses, flags) even when document retrieval is sparse.
+    """
+    s = patient_data.get("summary", {})
+    p = patient_data.get("patient", {})
+    if not s and not p:
+        return None
+
+    lines = []
+
+    # Patient header
+    name = p.get("name", "Unknown")
+    age  = p.get("age", "?")
+    mrn  = p.get("mrn", "")
+    lines.append(f"PATIENT RECORD — {name}, Age {age}" + (f" | MRN: {mrn}" if mrn else ""))
+
+    # Narrative
+    narrative = s.get("summary_narrative", "")
+    if narrative:
+        lines.append(f"\nCLINICAL SUMMARY:\n{narrative}")
+
+    # Diagnoses
+    diagnoses = s.get("diagnoses", [])
+    if diagnoses:
+        lines.append("\nDIAGNOSES:")
+        for d in diagnoses:
+            name_d = d.get("name", str(d)) if isinstance(d, dict) else str(d)
+            status = d.get("status", "") if isinstance(d, dict) else ""
+            icd    = d.get("icd_code", "") if isinstance(d, dict) else ""
+            since  = d.get("date_first_noted", "") if isinstance(d, dict) else ""
+            parts  = [f"- {name_d}"]
+            if icd:    parts.append(f"[{icd}]")
+            if status: parts.append(f"— {status}")
+            if since:  parts.append(f"(since {since})")
+            lines.append(" ".join(parts))
+
+    # Medications
+    meds = s.get("medications", [])
+    if meds:
+        lines.append("\nCURRENT MEDICATIONS:")
+        for m in meds:
+            if isinstance(m, dict):
+                dose = m.get("dose", "")
+                freq = m.get("frequency", "")
+                lines.append(f"- {m.get('name', '?')} {dose} {freq}".strip())
+            else:
+                lines.append(f"- {m}")
+
+    # Recent labs
+    labs = s.get("lab_results", [])
+    if labs:
+        lines.append("\nRECENT LAB RESULTS:")
+        for lab in labs:
+            if isinstance(lab, dict):
+                flag = f" [{lab.get('flag','').upper()}]" if lab.get("flag") and lab["flag"] not in ("normal", "") else ""
+                date = f" ({lab.get('date', '')})" if lab.get("date") else ""
+                lines.append(f"- {lab.get('test_name','?')}: {lab.get('value','?')} {lab.get('unit','')}{flag}{date}".strip())
+
+    # Clinical flags
+    flags = s.get("clinical_flags", [])
+    if flags:
+        lines.append("\nCLINICAL FLAGS:")
+        for f in flags:
+            text = f.get("text", str(f)) if isinstance(f, dict) else str(f)
+            lines.append(f"- {text}")
+
+    # Recent timeline (last 5 events)
+    timeline = s.get("timeline", [])
+    if timeline:
+        lines.append("\nRECENT TIMELINE:")
+        for ev in timeline[-5:]:
+            if isinstance(ev, dict):
+                lines.append(f"- {ev.get('date','?')}: {ev.get('event','')}")
+
+    # Allergies
+    allergies = s.get("allergies", [])
+    if allergies:
+        lines.append(f"\nALLERGIES: {', '.join(str(a) for a in allergies)}")
+
+    text = "\n".join(lines).strip()
+    if not text:
+        return None
+
+    return {
+        "chunk_id":   "structured_summary",
+        "patient_id": patient_id,
+        "source_doc": "patient_record",
+        "doc_type":   "structured_summary",
+        "text":       text,
+        "score":      999.0,   # always ranks first
+    }
+
+
 def context_assembler_node(state: RAGState) -> RAGState:
     seen, merged = set(), []
+
+    # Always inject the structured patient record as the first chunk
+    # so the generator has direct access to labs, meds, and diagnoses
+    # even when document retrieval is sparse.
+    if state["route"] != "research":
+        summary_chunk = _build_patient_summary_chunk(state["patient_data"], state["patient_id"])
+        if summary_chunk:
+            seen.add(summary_chunk["text"][:80])
+            merged.append(summary_chunk)
+
     for chunk in state["patient_chunks"] + state["research_chunks"] + state["web_chunks"]:
-        key = chunk.get("text","")[:80]
+        key = chunk.get("text", "")[:80]
         if key not in seen:
             seen.add(key)
             merged.append(chunk)
+
     merged.sort(key=lambda c: c.get("score", 0), reverse=True)
-    return {**state, "all_chunks": merged[:12]}
+    return {**state, "all_chunks": merged[:14]}
 
 
 def sufficiency_judge_node(state: RAGState) -> RAGState:
@@ -429,11 +614,12 @@ def eval_node(state: RAGState) -> RAGState:
     faith   = scores.get("faithfulness", 1.0)
     hallu   = scores.get("hallucination_detected", False)
     blocked = scores.get("blocked", False)
-    final   = state["raw_answer"] if not blocked else (
-        f"⚠️ Response blocked — faithfulness too low ({faith:.0%}).\n\n"
-        + ("Unsupported claims:\n" + "\n".join(f"• {c}" for c in scores.get("unsupported_claims",[]))
-           if scores.get("unsupported_claims") else "")
-    )
+
+    final = state["raw_answer"]
+    if faith < 0.70 or hallu:
+        final += f"\n\n⚠️ **Eval Agent Warning:** Faithfulness is low ({faith:.0%}).\n"
+        if scores.get("unsupported_claims"):
+            final += "Unsupported claims:\n" + "\n".join(f"• {c}" for c in scores.get("unsupported_claims",[]))
 
     result = _ev("eval_agent", "result",
                  f"Faithfulness: {faith:.0%} | {'Hallucination ⚠' if hallu else 'Verified ✓'}",
@@ -442,6 +628,29 @@ def eval_node(state: RAGState) -> RAGState:
     return {**state,
             "eval_scores": scores,
             "final_response": final,
+            "thinking_log": state["thinking_log"] + [thinking, result]}
+
+
+def follow_up_node(state: RAGState) -> RAGState:
+    log.info("[rag] follow_up starting")
+    if state.get("is_refusal", False):
+        return {**state, "follow_ups": []}
+
+    thinking = _ev("follow_up_agent", "thinking", "Generating dynamic follow-up questions...")
+    try:
+        res = _groq_json(
+            user=f"Question: {state['question']}\n\nAnswer: {state['raw_answer']}",
+            system=_FOLLOW_UP_PROMPT,
+        )
+        follow_ups = res.get("follow_up_questions", [])
+    except Exception as exc:
+        log.warning("[rag] Follow-up generation failed: %s", exc)
+        follow_ups = []
+
+    result = _ev("follow_up_agent", "result", f"Generated {len(follow_ups)} follow-up questions", {"follow_ups": follow_ups})
+
+    return {**state,
+            "follow_ups": follow_ups,
             "thinking_log": state["thinking_log"] + [thinking, result]}
 
 
@@ -457,6 +666,7 @@ def _build_rag_graph() -> StateGraph:
     wf.add_node("sufficiency_judge", sufficiency_judge_node)
     wf.add_node("generator",         generator_node)
     wf.add_node("eval_agent",        eval_node)
+    wf.add_node("follow_up_agent",   follow_up_node)
 
     wf.set_entry_point("query_router")
     wf.add_edge("query_router",      "patient_retriever")
@@ -466,7 +676,8 @@ def _build_rag_graph() -> StateGraph:
     wf.add_edge("context_assembler", "sufficiency_judge")
     wf.add_edge("sufficiency_judge", "generator")
     wf.add_edge("generator",         "eval_agent")
-    wf.add_edge("eval_agent",        END)
+    wf.add_edge("eval_agent",        "follow_up_agent")
+    wf.add_edge("follow_up_agent",   END)
     return wf.compile()
 
 
@@ -483,13 +694,15 @@ async def run_rag_streaming(
     (fixes the duplicate-entry bug where cumulative log was re-emitted).
     Caches final answers so repeated questions are instant.
     """
-    cache_key = (patient_id, question.strip().lower())
-    if cache_key in _answer_cache:
-        log.info("[rag] Answer cache hit for patient %s", patient_id)
-        yield _ev("query_router",  "result", "Answer loaded from cache ⚡", {"cached": True})
-        yield {"type": "done", "node": "cache", "message": "Cached response",
-               "data": _answer_cache[cache_key]}
+    cache_patient_id = _patient_cache_id(patient_id, patient_data)
+    cached_answer = get_answer(cache_patient_id, question)
+    if cached_answer:
+        log.info("[rag] SQLite Answer cache hit for patient %s", patient_id)
+        await asyncio.sleep(2)
+        yield {"type": "done", "node": "cache", "message": "Response ready",
+               "data": cached_answer}
         return
+
 
     initial: RAGState = {
         "patient_id":         patient_id,
@@ -509,30 +722,71 @@ async def run_rag_streaming(
         "citations":          [],
         "error":              None,
         "thinking_log":       [],
+        "follow_ups":         [],
     }
 
-    yielded_count = 0  # track how many thinking_log entries we've already emitted
+    yielded_count = 0
+    answer_yielded = False  # track whether we've already sent the done event
 
     async for event in rag_graph.astream(initial):
         for node_name, node_state in event.items():
             tlog = node_state.get("thinking_log", [])
-            # Only yield entries added by THIS node (everything since last yield)
             new_entries = tlog[yielded_count:]
             for entry in new_entries:
                 yield entry
             yielded_count = len(tlog)
 
-            if node_name == "eval_agent":
+            # ── Fire "done" immediately after generator completes ──────────
+            # The user can start reading while eval + follow-up run in the bg.
+            if node_name == "generator" and not answer_yielded:
+                answer_yielded = True
+                yield {
+                    "type":    "done",
+                    "node":    "generator",
+                    "message": "Response ready",
+                    "data": {
+                        "final_response": node_state.get("raw_answer", ""),
+                        "citations":      node_state.get("citations", []),
+                        "eval_scores":    {},       # filled in by patch_eval
+                        "route":          node_state.get("route", ""),
+                        "is_refusal":     node_state.get("is_refusal", False),
+                        "follow_ups":     [],       # filled in by patch_followups
+                    },
+                }
+
+            # ── Eval scores arrive as a patch ──────────────────────────────
+            elif node_name == "eval_agent":
+                eval_scores = node_state.get("eval_scores", {})
+                # Append any faithfulness warning to the rendered answer
+                final = node_state.get("final_response", node_state.get("raw_answer", ""))
+                yield {
+                    "type":    "patch_eval",
+                    "node":    "eval_agent",
+                    "message": "Eval complete",
+                    "data": {
+                        "eval_scores":    eval_scores,
+                        "final_response": final,
+                    },
+                }
+
+            # ── Follow-ups arrive as a patch; cache the full result here ───
+            elif node_name == "follow_up_agent":
+                follow_ups = node_state.get("follow_ups", [])
                 result_data = {
                     "final_response": node_state.get("final_response", ""),
                     "citations":      node_state.get("citations", []),
                     "eval_scores":    node_state.get("eval_scores", {}),
                     "route":          node_state.get("route", ""),
                     "is_refusal":     node_state.get("is_refusal", False),
+                    "follow_ups":     follow_ups,
                 }
-                # Cache non-refusal answers
                 if not node_state.get("is_refusal", True):
-                    _answer_cache[cache_key] = result_data
+                    set_answer(cache_patient_id, question, result_data)
 
-                yield {"type": "done", "node": "eval_agent",
-                       "message": "Response ready", "data": result_data}
+                yield {
+                    "type":    "patch_followups",
+                    "node":    "follow_up_agent",
+                    "message": "Follow-ups ready",
+                    "data":    {"follow_ups": follow_ups},
+                }
+
