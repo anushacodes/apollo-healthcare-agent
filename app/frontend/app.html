@@ -10,10 +10,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="static/css/reset.css?v=2">
-  <link rel="stylesheet" href="static/css/variables.css?v=2">
-  <link rel="stylesheet" href="static/css/app.css?v=2">
-  <link rel="stylesheet" href="static/css/clinical.css?v=2">
+  <link rel="stylesheet" href="static/css/reset.css?v=4">
+  <link rel="stylesheet" href="static/css/variables.css?v=4">
+  <link rel="stylesheet" href="static/css/app.css?v=4">
+  <link rel="stylesheet" href="static/css/clinical.css?v=4">
 </head>
 <body class="app-body">
 
@@ -99,13 +99,11 @@
         <button class="tab-btn" data-tab="upload">
           <span class="tab-icon">📁</span> Documents
         </button>
-        <button class="tab-btn disabled" data-tab="ask" title="Coming soon">
+        <button class="tab-btn" data-tab="ask">
           <span class="tab-icon">💬</span> Ask
-          <span class="tab-soon-badge">Soon</span>
         </button>
-        <button class="tab-btn disabled" data-tab="research" title="Coming soon">
+        <button class="tab-btn" data-tab="research">
           <span class="tab-icon">🔬</span> Research
-          <span class="tab-soon-badge">Soon</span>
         </button>
       </nav>
 
@@ -129,33 +127,14 @@
           <!-- Populated by upload.js -->
         </div>
 
-        <!-- Ask (coming soon) -->
+        <!-- Ask — agentic RAG chat -->
         <div class="tab-panel" id="tab-ask">
-          <div class="coming-soon-panel">
-            <div class="cs-icon-wrap">💬<span class="cs-badge">Soon</span></div>
-            <h2>Ask the Clinical Agent</h2>
-            <p>Multi-agent RAG chat across all uploaded documents simultaneously.</p>
-            <div class="cs-features">
-              <div class="cs-feature">🔍 RAG retrieval</div>
-              <div class="cs-feature">🤖 LangGraph agents</div>
-              <div class="cs-feature">📎 Source citations</div>
-              <div class="cs-feature">🧪 LLM eval judge</div>
-            </div>
-          </div>
+          <!-- Populated by ask.js on tab activation -->
         </div>
 
-        <!-- Research (coming soon) -->
+        <!-- Research — PubMed papers -->
         <div class="tab-panel" id="tab-research">
-          <div class="coming-soon-panel">
-            <div class="cs-icon-wrap">🔬<span class="cs-badge">Soon</span></div>
-            <h2>Research Agent</h2>
-            <p>Surface relevant clinical literature, trials, and guidelines for this patient's diagnoses.</p>
-            <div class="cs-features">
-              <div class="cs-feature">📚 PubMed integration</div>
-              <div class="cs-feature">🔗 Clinical guidelines</div>
-              <div class="cs-feature">🧬 Trial matching</div>
-            </div>
-          </div>
+          <!-- Populated by research.js on tab activation -->
         </div>
 
       </div><!-- /tab-panels -->
@@ -164,12 +143,14 @@
   </div><!-- /main-content -->
 
   <!-- Scripts — order matters: api → data → renderers → controller -->
-  <script src="static/js/api.js?v=2"></script>
-  <script src="static/js/demo-data.js?v=2"></script>
-  <script src="static/js/summary.js?v=2"></script>
-  <script src="static/js/upload.js?v=2"></script>
-  <script src="static/js/diagnostics.js?v=2"></script>
-  <script src="static/js/app.js?v=2"></script>
+  <script src="static/js/api.js?v=4"></script>
+  <script src="static/js/demo-data.js?v=4"></script>
+  <script src="static/js/summary.js?v=4"></script>
+  <script src="static/js/upload.js?v=4"></script>
+  <script src="static/js/diagnostics.js?v=4"></script>
+  <script src="static/js/ask.js?v=4"></script>
+  <script src="static/js/research.js?v=4"></script>
+  <script src="static/js/app.js?v=4"></script>
 
 </body>
 </html>
