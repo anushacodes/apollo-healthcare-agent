@@ -41,10 +41,6 @@
 
   <!-- Hero -->
   <main class="hero">
-    <div class="hero-badge">
-      <span></span> Research Platform — Synthetic Data Only
-    </div>
-
     <h1>
       Autonomous Polyagent<br>
       <span class="gradient-text">Clinical Intelligence</span>
@@ -57,22 +53,20 @@
 
     <div class="hero-ctas">
       <a href="app.html?case=case_a" class="btn-hero-primary">
-        <span>🧬</span>
         Try Demo Patient
       </a>
       <a href="app.html" class="btn-hero-secondary">
-        <span>📁</span>
         Upload Patient Data
       </a>
     </div>
 
     <div class="hero-pills">
-      <div class="pill"><span class="pill-icon">🔍</span> Multi-modal RAG</div>
-      <div class="pill"><span class="pill-icon">🤖</span> LangGraph Agents</div>
-      <div class="pill"><span class="pill-icon">🧠</span> LLM Evals</div>
-      <div class="pill"><span class="pill-icon">🔒</span> Local-only</div>
-      <div class="pill"><span class="pill-icon">📊</span> Knowledge Graphs</div>
-      <div class="pill"><span class="pill-icon">💊</span> Drug Interactions</div>
+      <div class="pill">Multi-modal RAG</div>
+      <div class="pill">LangGraph Agents</div>
+      <div class="pill">LLM Evals</div>
+      <div class="pill">Local-only</div>
+      <div class="pill">Knowledge Graphs</div>
+      <div class="pill">Drug Interactions</div>
     </div>
   </main>
 
@@ -84,7 +78,6 @@
     <div class="features-grid">
 
       <div class="feature-card">
-        <div class="feature-icon">🔍</div>
         <h3>Multi-modal Document Ingestion</h3>
         <p>Extracts structured data from handwritten clinical notes, PDFs, radiology reports, lab results, and audio transcripts using Docling and LightOnOCR-2-1B.</p>
         <div class="feature-chips">
@@ -96,7 +89,6 @@
       </div>
 
       <div class="feature-card">
-        <div class="feature-icon">🤖</div>
         <h3>Multi-agent Orchestration</h3>
         <p>Specialized AI agents collaborate via LangGraph — a retrieval agent, a drug interaction agent, a diagnostic reasoning agent — each challenging and refining the others.</p>
         <div class="feature-chips">
@@ -108,7 +100,6 @@
       </div>
 
       <div class="feature-card">
-        <div class="feature-icon">📚</div>
         <h3>Multimodal RAG Pipeline</h3>
         <p>Hybrid retrieval using dense embeddings from Qwen3-VL-Embedding-2B and BM25 sparse search, combined via Reciprocal Rank Fusion for precision retrieval.</p>
         <div class="feature-chips">
@@ -120,7 +111,6 @@
       </div>
 
       <div class="feature-card">
-        <div class="feature-icon">🧪</div>
         <h3>LLM Evals + Feedback</h3>
         <p>Every agent output is evaluated by a judge LLM. Low-confidence answers trigger deeper reasoning loops. Results feed back to improve retrieval quality.</p>
         <div class="feature-chips">
@@ -131,7 +121,6 @@
       </div>
 
       <div class="feature-card">
-        <div class="feature-icon">🔒</div>
         <h3>Safety & Privacy First</h3>
         <p>Fully local deployment. Encrypted SQLite via SQLCipher. No real patient data, no cloud inference required. Rate-limit fallback: Groq → Gemini → Ollama.</p>
         <div class="feature-chips">
@@ -142,7 +131,6 @@
       </div>
 
       <div class="feature-card">
-        <div class="feature-icon">📈</div>
         <h3>Knowledge Graph Integration</h3>
         <p>Drug interactions, ICD-10 codes, and clinical relationships are traversed via a medical knowledge graph to surface hidden risks and contraindications.</p>
         <div class="feature-chips">
@@ -167,7 +155,7 @@
         </p>
         <div style="display:flex; gap:10px; margin-top:24px;">
           <a href="app.html?case=case_a" class="btn-hero-primary" style="font-size:14px;padding:11px 24px;">
-            🧬 Launch Demo
+            Launch Demo
           </a>
         </div>
       </div>
@@ -189,18 +177,18 @@
           <span class="dpc-tag">Sjögren's</span>
         </div>
         <div class="dpc-docs">
-          <div class="dpc-doc"><div class="dpc-doc-dot"></div> 📝 GP handwritten note × 2</div>
-          <div class="dpc-doc"><div class="dpc-doc-dot"></div> 📄 Rheumatology clinic letter</div>
-          <div class="dpc-doc"><div class="dpc-doc-dot"></div> 🧪 Full blood panel + immunology</div>
-          <div class="dpc-doc"><div class="dpc-doc-dot"></div> 🫀 Chest X-ray + echocardiogram</div>
-          <div class="dpc-doc"><div class="dpc-doc-dot"></div> 🎙️ Consultation transcript</div>
+          <div class="dpc-doc"><div class="dpc-doc-dot"></div> GP handwritten note × 2</div>
+          <div class="dpc-doc"><div class="dpc-doc-dot"></div> Rheumatology clinic letter</div>
+          <div class="dpc-doc"><div class="dpc-doc-dot"></div> Full blood panel + immunology</div>
+          <div class="dpc-doc"><div class="dpc-doc-dot"></div> Chest X-ray + echocardiogram</div>
+          <div class="dpc-doc"><div class="dpc-doc-dot"></div> Consultation transcript</div>
         </div>
       </div>
     </div>
   </section>
 
   <footer class="home-footer">
-    <p>Apollo · Experimental AI Engineering Project · Synthetic data only — no real patient information</p>
+    <p>Apollo · Experimental AI Engineering Project</p>
   </footer>
 
 </body>
