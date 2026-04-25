@@ -7,11 +7,22 @@ from typing import Any
 
 _MAX_CHUNK_CHARS = 1600   # ~400 tokens
 _OVERLAP_CHARS   = 320    # ~80 tokens
+_MIN_SECTION_CHARS = 80   # skip pure headers / cross-reference stubs
+
+# Docling extraction header pattern — matches the ==...== boilerplate block
+_DOCLING_HEADER_RE = re.compile(
+    r"^={10,}.*?={10,}\s*", re.DOTALL
+)
 
 # Section-level header patterns (Markdown / clinical note headings)
 _SECTION_RE = re.compile(
-    r"(?m)^(?:#{1,3}\s.+|[A-Z][A-Z\s\/\-]{3,}:?\s*$)",
+    r"(?m)^(?:#{1,3}\s.+|\[SECTION:[^\]]+\]|[A-Z][A-Z\s\/\-]{3,}:?\s*$)",
 )
+
+
+def _strip_docling_header(text: str) -> str:
+    """Remove the Docling extraction boilerplate (===...=== block) from the top."""
+    return _DOCLING_HEADER_RE.sub("", text, count=1).strip()
 
 
 def _split_by_sections(text: str) -> list[str]:
@@ -38,7 +49,11 @@ def _slide_window(text: str, max_chars: int, overlap: int) -> list[str]:
             if last_period > pos + overlap:
                 end = last_period + 1
         chunks.append(text[pos:end].strip())
-        pos = end - overlap
+        
+        # Advance pos, but ensure it always moves forward to prevent infinite loops
+        new_pos = end - overlap
+        pos = new_pos if new_pos > pos else len(text)
+        
     return [c for c in chunks if c]
 
 
@@ -56,28 +71,40 @@ def chunk_text(
     if not text or not text.strip():
         return []
 
+    # Strip Docling boilerplate header before processing
+    text = _strip_docling_header(text)
+    if not text:
+        return []
+
     sections = _split_by_sections(text)
     raw_chunks: list[str] = []
     for section in sections:
+        # Skip pure headers and cross-reference stubs — no clinical value
+        if len(section) < _MIN_SECTION_CHARS:
+            continue
         if len(section) <= _MAX_CHUNK_CHARS:
             raw_chunks.append(section)
         else:
             raw_chunks.extend(_slide_window(section, _MAX_CHUNK_CHARS, _OVERLAP_CHARS))
 
-    return [
-        {
-            "chunk_id":   str(uuid.uuid4()),
-            "patient_id": patient_id,
-            "source_doc": source_doc,
-            "doc_type":   doc_type,
-            "page":       page,
-            "chunk_index": idx,
-            "text":       chunk,
-            "char_count": len(chunk),
-        }
-        for idx, chunk in enumerate(raw_chunks)
-        if chunk.strip()
-    ]
+    items = []
+    for idx, chunk in enumerate(raw_chunks):
+        if not chunk.strip():
+            continue
+        stable_key = f"{patient_id}|{source_doc}|{doc_type}|{page}|{idx}|{chunk}"
+        items.append(
+            {
+                "chunk_id": str(uuid.uuid5(uuid.NAMESPACE_URL, stable_key)),
+                "patient_id": patient_id,
+                "source_doc": source_doc,
+                "doc_type": doc_type,
+                "page": page,
+                "chunk_index": idx,
+                "text": chunk,
+                "char_count": len(chunk),
+            }
+        )
+    return items
 
 
 def chunk_documents(
