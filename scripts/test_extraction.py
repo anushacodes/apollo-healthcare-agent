@@ -10,7 +10,6 @@ Run from the medcontext/ root:
 """
 
 import sys
-import os
 from pathlib import Path
 
 # Make sure the app package is importable when run from the project root
@@ -58,11 +57,11 @@ def main() -> None:
         print(f"  Tables         : {len(result.tables)}")
 
         if result.ocr_notes:
-            print(f"\n  OCR Notes:")
+            print("\n  OCR Notes:")
             for note in result.ocr_notes:
                 print(f"    • {note}")
 
-        print(f"\n  --- First 500 chars of extracted text ---")
+        print("\n  --- First 500 chars of extracted text ---")
         print(result.text[:500])
         print("  ...")
 

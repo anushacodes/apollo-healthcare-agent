@@ -20,7 +20,6 @@ Flags:
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 import time
 from pathlib import Path
@@ -108,8 +107,8 @@ def test_context_builder() -> None:
     print("  ✓ Context builder passed")
 
 
-def test_stub(args) -> None:
-    if args.live_only:
+def test_stub(live_only: bool = False) -> None:
+    if live_only:
         return
     print(f"\n{SEP}\n  Stub mode (force_stub=True)\n{SEP}")
     t0 = time.perf_counter()
@@ -120,11 +119,11 @@ def test_stub(args) -> None:
     assert result.chief_complaint
     assert isinstance(result.current_medications, list)
     print_summary(result, "STUB RESULT")
-    print(f"\n  ✓ Stub test passed")
+    print("\n  ✓ Stub test passed")
 
 
-def test_live(args) -> None:
-    if args.stub_only:
+def test_live(stub_only: bool = False) -> None:
+    if stub_only:
         print("\n  [skipped] Live test (--stub-only flag set)")
         return
     print(f"\n{SEP}\n  Live mode (Groq → Gemini chain)\n{SEP}")
@@ -162,8 +161,8 @@ def main() -> None:
     print(f"{'=' * 64}")
 
     test_context_builder()
-    test_stub(args)
-    test_live(args)
+    test_stub(live_only=args.live_only)
+    test_live(stub_only=args.stub_only)
 
     print(f"\n{SEP}")
     print("  All tests passed ✓")
