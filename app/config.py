@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     groq_api_key: Optional[str] = Field(default=None, alias="GROQ_API_KEY")
     gemini_api_key: Optional[str] = Field(default=None, alias="GEMINI_API_KEY")
     openrouter_api_key: Optional[str] = Field(default=None, alias="OPENROUTER_API_KEY")
+    tavily_api_key: Optional[str] = Field(default=None, alias="TAVILY_API_KEY")
 
 
     # Model choices per role
@@ -101,5 +102,10 @@ class Settings(BaseSettings):
     @property
     def has_neo4j(self) -> bool:
         return bool(self.neo4j_password)
+
+    @computed_field
+    @property
+    def has_tavily(self) -> bool:
+        return bool(self.tavily_api_key)
 
 settings = Settings()
