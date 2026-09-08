@@ -49,6 +49,7 @@ class Settings(BaseSettings):
         default=["http://localhost:7860", "http://localhost:8000"],
         alias="ALLOWED_ORIGINS",
     )
+    max_upload_size_mb: int = Field(default=20, alias="MAX_UPLOAD_SIZE_MB")
 
     # Computed paths
     @computed_field

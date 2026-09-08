@@ -10,6 +10,9 @@ from app.agent.rag_agent import run_rag_streaming
 from app.agent.research_agent import fetch_pubmed, prefetch_pubmed_background
 from app.agent.seed_patient import get_case
 from app.agent.sqlite_cache import hash_text, mark_document_indexed
+from app.config import settings
+
+_UPLOAD_CHUNK_SIZE = 1024 * 1024
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/rag", tags=["rag"])
@@ -106,6 +109,35 @@ async def get_research(patient_id: str, case_key: str | None = None):
     }
 
 
+async def _read_upload_capped(file: UploadFile) -> bytes:
+    """Stream the upload in chunks, rejecting it as soon as it crosses the
+    configured cap instead of buffering an unbounded body into memory first."""
+    max_bytes = settings.max_upload_size_mb * 1024 * 1024
+    parts: list[bytes] = []
+    total = 0
+    while chunk := await file.read(_UPLOAD_CHUNK_SIZE):
+        total += len(chunk)
+        if total > max_bytes:
+            raise HTTPException(
+                status_code=413,
+                detail=f"File exceeds the {settings.max_upload_size_mb}MB upload limit",
+            )
+        parts.append(chunk)
+    return b"".join(parts)
+
+
+def _decode_text(content: bytes) -> str:
+    """Detect actual encoding instead of assuming UTF-8 and silently dropping
+    bytes that don't fit (the old `errors='ignore'` behavior)."""
+    from charset_normalizer import from_bytes
+
+    best_guess = from_bytes(content).best()
+    if best_guess is not None:
+        return str(best_guess)
+    log.warning("[rag] Could not detect encoding, falling back to utf-8 with replacement")
+    return content.decode("utf-8", errors="replace")
+
+
 @router.post("/ingest/{patient_id}")
 async def ingest_document(patient_id: str, file: UploadFile = File(...)):
     import os
@@ -115,34 +147,36 @@ async def ingest_document(patient_id: str, file: UploadFile = File(...)):
     from app.ingestion.embedder import embed_chunks_async
     from app.ingestion.parser import parse_document_async
 
+    content = await _read_upload_capped(file)
+
     try:
         suffix = os.path.splitext(file.filename)[1]
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-            content = await file.read()
             tmp.write(content)
             tmp_path = tmp.name
 
-        # Parse
-        if suffix.lower() == ".txt":
-            from app.ingestion.extractors import ExtractionResult
+        try:
+            # Parse
+            if suffix.lower() == ".txt":
+                from app.ingestion.extractors import ExtractionResult
 
-            text = content.decode("utf-8", errors="ignore")
-            result = ExtractionResult(
-                source_path=file.filename,
-                extractor_type="text",
-                text=text,
-                tables=[],
-                sections=[],
-                metadata={},
-                ocr_notes=[],
-                confidence=1.0,
-                needs_ocr_fallback=False,
-                formatted_output=text,
-            )
-        else:
-            result = await parse_document_async(tmp_path)
-
-        os.remove(tmp_path)
+                text = _decode_text(content)
+                result = ExtractionResult(
+                    source_path=file.filename,
+                    extractor_type="text",
+                    text=text,
+                    tables=[],
+                    sections=[],
+                    metadata={},
+                    ocr_notes=[],
+                    confidence=1.0,
+                    needs_ocr_fallback=False,
+                    formatted_output=text,
+                )
+            else:
+                result = await parse_document_async(tmp_path)
+        finally:
+            os.remove(tmp_path)
 
         # Chunk and Embed
         chunks = chunk_text(result.text, patient_id, file.filename)
@@ -155,6 +189,8 @@ async def ingest_document(patient_id: str, file: UploadFile = File(...)):
         )
 
         return {"status": "success", "file": file.filename, "chunks_embedded": upserted}
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 
