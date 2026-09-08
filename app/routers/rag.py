@@ -110,9 +110,9 @@ async def get_research(patient_id: str, case_key: str | None = None):
 async def ingest_document(patient_id: str, file: UploadFile = File(...)):
     import tempfile
     import os
-    from app.ingestion.parser import parse_document
+    from app.ingestion.parser import parse_document_async
     from app.ingestion.chunker import chunk_text
-    from app.ingestion.embedder import embed_chunks
+    from app.ingestion.embedder import embed_chunks_async
 
     try:
         suffix = os.path.splitext(file.filename)[1]
@@ -139,13 +139,13 @@ async def ingest_document(patient_id: str, file: UploadFile = File(...)):
                 formatted_output=text,
             )
         else:
-            result = parse_document(tmp_path)
-            
+            result = await parse_document_async(tmp_path)
+
         os.remove(tmp_path)
 
         # Chunk and Embed
         chunks = chunk_text(result.text, patient_id, file.filename)
-        upserted = embed_chunks(chunks)
+        upserted = await embed_chunks_async(chunks)
         mark_document_indexed(
             patient_id,
             file.filename,
