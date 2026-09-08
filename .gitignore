@@ -211,3 +211,7 @@ fREADME.md
 medcontext/
 uv.lock
 apollo_architecture_details.md
+
+# Internal working docs — not part of the public repo
+CLAUDE.md
+docs/
