@@ -15,7 +15,7 @@ from app.config import settings
 log = logging.getLogger(__name__)
 
 DB_PATH = settings.cache_dir / "apollo_cache.db"
-_CONN_LOCK = threading.Lock()
+_local = threading.local()
 
 
 def hash_text(value: str) -> str:
@@ -32,18 +32,24 @@ def normalize_query(value: str) -> str:
 
 
 def _get_conn() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode = WAL")
-    conn.execute("PRAGMA synchronous = NORMAL")
-    conn.execute("PRAGMA temp_store = MEMORY")
-    conn.execute("PRAGMA foreign_keys = ON")
+    """One connection per thread, reused across calls. WAL mode lets SQLite
+    handle concurrent readers/writers at the file level, so no app-level
+    lock is needed on top of it."""
+    conn = getattr(_local, "conn", None)
+    if conn is None:
+        conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode = WAL")
+        conn.execute("PRAGMA synchronous = NORMAL")
+        conn.execute("PRAGMA temp_store = MEMORY")
+        conn.execute("PRAGMA foreign_keys = ON")
+        _local.conn = conn
     return conn
 
 
 def init_db() -> None:
     try:
-        with _CONN_LOCK, _get_conn() as conn:
+        with _get_conn() as conn:
             conn.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS pubmed_cache (
@@ -143,7 +149,7 @@ def _get_json_row(
     params = list(key_fields.values())
     sql = f"SELECT {value_field}, updated_at FROM {table} WHERE {where}"
     try:
-        with _CONN_LOCK, _get_conn() as conn:
+        with _get_conn() as conn:
             row = conn.execute(sql, params).fetchone()
         if not row or not _is_fresh(row["updated_at"], max_age_seconds):
             return None
@@ -171,7 +177,7 @@ def _set_json_row(
     """
     params = [*key_fields.values(), json.dumps(value, default=str), time.time()]
     try:
-        with _CONN_LOCK, _get_conn() as conn:
+        with _get_conn() as conn:
             conn.execute(sql, params)
     except Exception as exc:
         log.error("[sqlite_cache] write error to %s: %s", table, exc)
@@ -256,7 +262,7 @@ def set_node_cache(namespace: str, cache_key: str, payload: dict | list) -> None
 
 def is_document_indexed(patient_id: str, source_doc: str, content_hash: str) -> bool:
     try:
-        with _CONN_LOCK, _get_conn() as conn:
+        with _get_conn() as conn:
             row = conn.execute(
                 """
                 SELECT 1
@@ -279,7 +285,7 @@ def mark_document_indexed(
     chunk_count: int,
 ) -> None:
     try:
-        with _CONN_LOCK, _get_conn() as conn:
+        with _get_conn() as conn:
             conn.execute(
                 """
                 INSERT INTO indexed_documents (patient_id, source_doc, content_hash, chunk_count, updated_at)
@@ -314,7 +320,7 @@ def upsert_chunk_records(chunks: Iterable[dict[str, Any]]) -> None:
         return
 
     try:
-        with _CONN_LOCK, _get_conn() as conn:
+        with _get_conn() as conn:
             conn.executemany(
                 """
                 INSERT INTO chunk_cache (
@@ -386,7 +392,7 @@ def search_chunk_records(
         LIMIT ?
     """
     try:
-        with _CONN_LOCK, _get_conn() as conn:
+        with _get_conn() as conn:
             rows = conn.execute(sql, params).fetchall()
         return [dict(row) for row in rows]
     except Exception as exc:
