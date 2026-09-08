@@ -4,9 +4,8 @@ import json
 import logging
 from typing import Any
 
-from groq import Groq
-
 from app.config import settings
+from app.llm_client import get_groq_client
 
 log = logging.getLogger(__name__)
 
@@ -97,7 +96,7 @@ def run_eval(
 
     scores: dict[str, Any] = {}
     try:
-        client = Groq(api_key=settings.groq_api_key)
+        client = get_groq_client()
         response = client.chat.completions.create(
             model=settings.groq_eval_model,
             messages=[

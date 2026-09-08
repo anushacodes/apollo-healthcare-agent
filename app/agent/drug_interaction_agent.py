@@ -4,10 +4,9 @@ import json
 import logging
 from typing import Any
 
-from groq import Groq
-
 from app.agent import kg_loader
 from app.config import settings
+from app.llm_client import get_groq_client
 
 log = logging.getLogger(__name__)
 
@@ -40,7 +39,7 @@ Return ONLY valid JSON:
 
 
 def _call_llm(medications: list[str], diagnoses: list[str], kg_results: dict) -> dict[str, Any]:
-    client = Groq(api_key=settings.groq_api_key)
+    client = get_groq_client()
     prompt = (
         f"MEDICATIONS: {json.dumps(medications)}\n"
         f"DIAGNOSES: {json.dumps(diagnoses)}\n"

@@ -8,10 +8,10 @@ from typing import Any
 
 from google import genai
 from google.genai import types as genai_types
-from groq import Groq
 
 from app.agent.sqlite_cache import get_summary, hash_payload, set_summary
 from app.config import settings
+from app.llm_client import get_groq_client
 from app.models import ClinicalSummary
 
 log = logging.getLogger(__name__)
@@ -106,7 +106,7 @@ def build_context(patient_data: dict) -> str:
     return "\n".join(lines)
 
 def _call_groq(context: str) -> dict[str, Any]:
-    client = Groq(api_key=settings.groq_api_key)
+    client = get_groq_client()
     response = client.chat.completions.create(
         model=settings.groq_model,
         messages=[

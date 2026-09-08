@@ -4,8 +4,6 @@ import asyncio
 import json
 import logging
 
-from groq import Groq
-
 from app.agent.eval_agent import run_eval
 from app.agent.rag.prompts import _FOLLOW_UP_PROMPT, _GENERATOR_PROMPT, _ROUTER_PROMPT
 from app.agent.rag.state import RAGState
@@ -19,6 +17,7 @@ from app.agent.sqlite_cache import (
 from app.config import settings
 from app.ingestion.chunker import chunk_text
 from app.ingestion.embedder import embed_chunks_async, search_chunks_async
+from app.llm_client import get_groq_client
 
 log = logging.getLogger(__name__)
 
@@ -26,7 +25,7 @@ log = logging.getLogger(__name__)
 # ── LLM helpers ──────────────────────────────────────────────────────────────
 
 def _groq_json(user: str, system: str = "") -> dict:
-    client = Groq(api_key=settings.groq_api_key)
+    client = get_groq_client()
     messages = []
     if system:
         messages.append({"role": "system", "content": system})
@@ -42,7 +41,7 @@ def _groq_json(user: str, system: str = "") -> dict:
 
 
 def _groq_text(system: str, user: str, max_tokens: int = 1200) -> str:
-    resp = Groq(api_key=settings.groq_api_key).chat.completions.create(
+    resp = get_groq_client().chat.completions.create(
         model=settings.groq_model,
         messages=[
             {"role": "system", "content": system},

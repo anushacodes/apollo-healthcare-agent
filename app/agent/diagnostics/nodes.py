@@ -4,7 +4,6 @@ import json
 import logging
 
 import httpx
-from groq import Groq
 
 from app.agent import kg_loader
 from app.agent.diagnosis_agent import run_diagnosis_agent
@@ -15,6 +14,7 @@ from app.agent.sqlite_cache import get_node_cache, hash_payload, set_node_cache
 from app.agent.summarizer import build_context, run_summarizer
 from app.agent.tools import TOOL_MAP
 from app.config import settings
+from app.llm_client import get_groq_client
 
 log = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ log = logging.getLogger(__name__)
 # ── LLM helpers ──────────────────────────────────────────────────────────────
 
 def _call_groq_json(system: str, user: str, max_tokens: int = 1024) -> dict:
-    client = Groq(api_key=settings.groq_api_key)
+    client = get_groq_client()
     response = client.chat.completions.create(
         model=settings.groq_model,
         messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
