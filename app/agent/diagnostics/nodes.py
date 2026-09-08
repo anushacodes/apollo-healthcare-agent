@@ -6,16 +6,15 @@ import logging
 import httpx
 from groq import Groq
 
-from app.config import settings
 from app.agent import kg_loader
-from app.agent.tools import TOOL_MAP
-from app.agent.drug_interaction_agent import run_drug_interaction_agent
 from app.agent.diagnosis_agent import run_diagnosis_agent
-from app.agent.sqlite_cache import get_node_cache, hash_payload, set_node_cache
-from app.agent.summarizer import build_context, run_summarizer
 from app.agent.diagnostics.prompts import _ORCHESTRATOR_PROMPT
 from app.agent.diagnostics.state import AgentState
-from app.models import ClinicalSummary
+from app.agent.drug_interaction_agent import run_drug_interaction_agent
+from app.agent.sqlite_cache import get_node_cache, hash_payload, set_node_cache
+from app.agent.summarizer import build_context, run_summarizer
+from app.agent.tools import TOOL_MAP
+from app.config import settings
 
 log = logging.getLogger(__name__)
 

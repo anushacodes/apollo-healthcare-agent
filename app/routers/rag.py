@@ -3,13 +3,13 @@ from __future__ import annotations
 import json
 import logging
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, UploadFile, File
+from fastapi import APIRouter, File, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
 from app.agent.rag_agent import run_rag_streaming
 from app.agent.research_agent import fetch_pubmed, prefetch_pubmed_background
-from app.agent.sqlite_cache import hash_text, mark_document_indexed
 from app.agent.seed_patient import get_case
+from app.agent.sqlite_cache import hash_text, mark_document_indexed
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/rag", tags=["rag"])
@@ -108,11 +108,12 @@ async def get_research(patient_id: str, case_key: str | None = None):
 
 @router.post("/ingest/{patient_id}")
 async def ingest_document(patient_id: str, file: UploadFile = File(...)):
-    import tempfile
     import os
-    from app.ingestion.parser import parse_document_async
+    import tempfile
+
     from app.ingestion.chunker import chunk_text
     from app.ingestion.embedder import embed_chunks_async
+    from app.ingestion.parser import parse_document_async
 
     try:
         suffix = os.path.splitext(file.filename)[1]
@@ -160,8 +161,9 @@ async def ingest_document(patient_id: str, file: UploadFile = File(...)):
 
 @router.get("/sources/{patient_id}")
 async def get_sources(patient_id: str):
-    from app.ingestion.embedder import _get_client, _COLLECTION
-    from qdrant_client.models import Filter, FieldCondition, MatchValue
+    from qdrant_client.models import FieldCondition, Filter, MatchValue
+
+    from app.ingestion.embedder import _COLLECTION, _get_client
     client = _get_client()
     if not client:
         return {"sources": []}

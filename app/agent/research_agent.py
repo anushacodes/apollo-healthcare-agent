@@ -8,8 +8,6 @@ from typing import Any
 
 import httpx
 
-from app.ingestion.chunker import chunk_text
-from app.ingestion.embedder import embed_chunks, search_chunks
 from app.agent.sqlite_cache import (
     get_pubmed,
     hash_text,
@@ -17,6 +15,8 @@ from app.agent.sqlite_cache import (
     mark_document_indexed,
     set_pubmed,
 )
+from app.ingestion.chunker import chunk_text
+from app.ingestion.embedder import embed_chunks, search_chunks
 
 log = logging.getLogger(__name__)
 

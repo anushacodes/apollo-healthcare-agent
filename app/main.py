@@ -9,10 +9,10 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.middleware import RequestContextMiddleware
-from app.routers import summarize
 from app.routers import agent as agent_router
 from app.routers import kg as kg_router
 from app.routers import rag as rag_router
+from app.routers import summarize
 
 logging.basicConfig(level=settings.log_level)
 log = logging.getLogger(__name__)
@@ -40,7 +40,8 @@ async def lifespan(app: FastAPI):
     # This also warms the Qdrant connection so the first query doesn't pay a cold-start penalty.
     try:
         import asyncio
-        from app.ingestion.embedder import _get_encoder, _get_client
+
+        from app.ingestion.embedder import _get_client, _get_encoder
         await asyncio.to_thread(_get_encoder)
         await asyncio.to_thread(_get_client)
         log.info("[startup] Embedding model and Qdrant client pre-loaded.")

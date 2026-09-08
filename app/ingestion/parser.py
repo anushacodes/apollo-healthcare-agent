@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from pathlib import Path
-from typing import Optional, Callable
 
 from app.ingestion.extractors import ExtractionResult
-from app.ingestion.extractors.pdf_extractor import parse_pdf, parse_pdf_async
 from app.ingestion.extractors.image_extractor import parse_image, parse_image_async
+from app.ingestion.extractors.pdf_extractor import parse_pdf, parse_pdf_async
 from app.ingestion.extractors.transcript_extractor import parse_transcript, parse_transcript_async
 
 log = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ _ASYNC_HANDLERS: dict[str, Callable] = {
 }
 
 # Public API
-def parse_document(file_path: str, *, out_dir: Optional[str] = None) -> ExtractionResult:
+def parse_document(file_path: str, *, out_dir: str | None = None) -> ExtractionResult:
     ext = Path(file_path).suffix.lower()
     handler = _SYNC_HANDLERS.get(ext)
     if handler is None:
@@ -44,7 +44,7 @@ def parse_document(file_path: str, *, out_dir: Optional[str] = None) -> Extracti
     log.info(f"parse_document: {file_path} → {handler.__module__}")
     return handler(file_path, out_dir=out_dir)
 
-async def parse_document_async(file_path: str, *, out_dir: Optional[str] = None) -> ExtractionResult:
+async def parse_document_async(file_path: str, *, out_dir: str | None = None) -> ExtractionResult:
     ext = Path(file_path).suffix.lower()
     handler = _ASYNC_HANDLERS.get(ext)
     if handler is None:

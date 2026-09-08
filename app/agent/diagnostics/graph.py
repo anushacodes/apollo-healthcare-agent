@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Any
 
 from langgraph.graph import END, StateGraph
 
-from app.agent.diagnostics.state import AgentState
 from app.agent.diagnostics.nodes import (
     diagnosis_node,
     drug_graph_node,
@@ -13,6 +13,7 @@ from app.agent.diagnostics.nodes import (
     summarizer_node,
     tool_node,
 )
+from app.agent.diagnostics.state import AgentState
 
 log = logging.getLogger(__name__)
 

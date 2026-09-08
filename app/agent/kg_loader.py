@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from neo4j import GraphDatabase, Driver
+    from neo4j import Driver, GraphDatabase
     _NEO4J_AVAILABLE = True
 except ImportError:
     _NEO4J_AVAILABLE = False

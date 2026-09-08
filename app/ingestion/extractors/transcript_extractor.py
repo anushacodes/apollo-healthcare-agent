@@ -6,7 +6,6 @@ import re
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
-from typing import Optional
 
 from app.ingestion.extractors import (
     ExtractionResult,
@@ -23,11 +22,11 @@ _INAUDIBLE = re.compile(r"\[(inaudible|crosstalk|overlap|unclear|noise)\]", re.I
 
 @dataclass
 class TranscriptTurn:
-    timestamp_sec: Optional[float]
+    timestamp_sec: float | None
     speaker: str
     text: str
 
-def parse_transcript(file_path: str, *, out_dir: Optional[str] = None) -> ExtractionResult:
+def parse_transcript(file_path: str, *, out_dir: str | None = None) -> ExtractionResult:
     path = Path(file_path)
     raw_text = path.read_text(encoding="utf-8")
 
@@ -95,7 +94,7 @@ def parse_transcript(file_path: str, *, out_dir: Optional[str] = None) -> Extrac
         formatted_output=formatted_output,
     )
 
-async def parse_transcript_async(file_path: str, *, out_dir: Optional[str] = None) -> ExtractionResult:
+async def parse_transcript_async(file_path: str, *, out_dir: str | None = None) -> ExtractionResult:
     loop = asyncio.get_running_loop()
     fn = partial(parse_transcript, file_path, out_dir=out_dir)
     return await loop.run_in_executor(None, fn)
@@ -141,7 +140,7 @@ def _ts_to_sec(ts: str) -> float:
         return int(m) * 60 + float(s)
     return float(ts)
 
-def _estimate_duration(turns: list[TranscriptTurn], raw: str) -> Optional[float]:
+def _estimate_duration(turns: list[TranscriptTurn], raw: str) -> float | None:
     ts_matches = _TS_PATTERN.findall(raw)
     if not ts_matches:
         return None

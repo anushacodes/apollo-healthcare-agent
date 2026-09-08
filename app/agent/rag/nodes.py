@@ -6,21 +6,19 @@ import logging
 
 from groq import Groq
 
-from app.config import settings
-from app.ingestion.chunker import chunk_text
-from app.ingestion.embedder import embed_chunks_async, search_chunks_async
-from app.agent.research_agent import fetch_pubmed
 from app.agent.eval_agent import run_eval
+from app.agent.rag.prompts import _FOLLOW_UP_PROMPT, _GENERATOR_PROMPT, _ROUTER_PROMPT
+from app.agent.rag.state import RAGState
+from app.agent.research_agent import fetch_pubmed
 from app.agent.sqlite_cache import (
-    get_answer,
     hash_payload,
     hash_text,
     is_document_indexed,
     mark_document_indexed,
-    set_answer,
 )
-from app.agent.rag.prompts import _FOLLOW_UP_PROMPT, _GENERATOR_PROMPT, _ROUTER_PROMPT
-from app.agent.rag.state import RAGState
+from app.config import settings
+from app.ingestion.chunker import chunk_text
+from app.ingestion.embedder import embed_chunks_async, search_chunks_async
 
 log = logging.getLogger(__name__)
 
@@ -217,9 +215,12 @@ def _build_patient_summary_chunk(patient_data: dict, patient_id: str) -> dict | 
             icd    = d.get("icd_code", "") if isinstance(d, dict) else ""
             since  = d.get("date_first_noted", "") if isinstance(d, dict) else ""
             parts  = [f"- {name_d}"]
-            if icd:    parts.append(f"[{icd}]")
-            if status: parts.append(f"— {status}")
-            if since:  parts.append(f"(since {since})")
+            if icd:
+                parts.append(f"[{icd}]")
+            if status:
+                parts.append(f"— {status}")
+            if since:
+                parts.append(f"(since {since})")
             lines.append(" ".join(parts))
 
     meds = s.get("medications", [])

@@ -7,7 +7,7 @@ import sqlite3
 import threading
 import time
 from collections.abc import Iterable
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 from app.config import settings

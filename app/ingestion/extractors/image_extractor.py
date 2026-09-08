@@ -5,12 +5,11 @@ import logging
 import re
 from functools import partial
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
+from docling.document_converter import DocumentConverter
 from PIL import Image
 from transformers import AutoModel, AutoProcessor
-from docling.document_converter import DocumentConverter
 
 from app.ingestion.extractors import (
     ExtractionResult,
@@ -42,7 +41,7 @@ def _load_lightocr():
 def parse_image(
     file_path: str,
     *,
-    out_dir: Optional[str] = None,
+    out_dir: str | None = None,
     force_lightocr: bool = False,
 ) -> ExtractionResult:
     path = Path(file_path)
@@ -116,7 +115,7 @@ def parse_image(
 async def parse_image_async(
     file_path: str,
     *,
-    out_dir: Optional[str] = None,
+    out_dir: str | None = None,
     force_lightocr: bool = False,
 ) -> ExtractionResult:
     loop = asyncio.get_running_loop()

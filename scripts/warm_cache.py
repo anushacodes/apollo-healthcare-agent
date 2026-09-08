@@ -63,7 +63,7 @@ ALL_QUESTIONS = SUGGESTION_QUESTIONS + EXTRA_QUESTIONS
 # ── Phase 1: Warm the encoder (load model into memory once) ───────────────
 def warm_encoder() -> None:
     log.info("Phase 1 — Loading sentence-transformers model into memory…")
-    from app.ingestion.embedder import _get_encoder, _get_client
+    from app.ingestion.embedder import _get_client, _get_encoder
     encoder = _get_encoder()
     client  = _get_client()
     if encoder is None:
@@ -81,9 +81,9 @@ def warm_encoder() -> None:
 def warm_patient_docs() -> None:
     log.info("Phase 2 — Embedding demo patient source documents…")
     from app.agent.seed_patient import CASES
+    from app.agent.sqlite_cache import hash_text, is_document_indexed, mark_document_indexed
     from app.ingestion.chunker import chunk_text
     from app.ingestion.embedder import embed_chunks
-    from app.agent.sqlite_cache import hash_text, is_document_indexed, mark_document_indexed
 
     for case_key, loader in CASES.items():
         case_data = loader()
@@ -128,8 +128,8 @@ def warm_patient_docs() -> None:
 # ── Phase 3: Pre-fetch PubMed for all demo cases ─────────────────────────
 def warm_pubmed() -> None:
     log.info("Phase 3 — Pre-fetching PubMed papers for all demo cases…")
-    from app.agent.seed_patient import CASES
     from app.agent.research_agent import fetch_pubmed
+    from app.agent.seed_patient import CASES
 
     for case_key, loader in CASES.items():
         case_data  = loader()
@@ -153,9 +153,9 @@ def warm_pubmed() -> None:
 # ── Phase 4: Pre-run RAG pipeline for all questions ───────────────────────
 async def warm_rag_answers() -> None:
     log.info("Phase 4 — Pre-generating RAG answers for all suggestion questions…")
+    from app.agent.rag_agent import run_rag_streaming
     from app.agent.seed_patient import CASES
     from app.agent.sqlite_cache import get_answer
-    from app.agent.rag_agent import run_rag_streaming
 
     for case_key, loader in CASES.items():
         case_data  = loader()
@@ -195,7 +195,7 @@ async def warm_rag_answers() -> None:
 
 # ── Phase 5: Print cache stats ────────────────────────────────────────────
 def print_stats() -> None:
-    from app.agent.sqlite_cache import _get_conn, DB_PATH
+    from app.agent.sqlite_cache import DB_PATH, _get_conn
     log.info("Cache DB: %s", DB_PATH)
     with _get_conn() as conn:
         for table in ["pubmed_cache", "rag_answer_cache", "indexed_documents", "chunk_cache"]:
