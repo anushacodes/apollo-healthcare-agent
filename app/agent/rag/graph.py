@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Any
 
 from langgraph.graph import END, StateGraph
 
-from app.agent.rag.state import RAGState
 from app.agent.rag.nodes import (
     _patient_cache_id,
     context_assembler_node,
@@ -19,6 +19,7 @@ from app.agent.rag.nodes import (
     sufficiency_judge_node,
     web_search_node,
 )
+from app.agent.rag.state import RAGState
 from app.agent.sqlite_cache import get_answer, set_answer
 
 log = logging.getLogger(__name__)

@@ -5,6 +5,7 @@ from typing import Any
 
 from langchain_core.tools import tool
 
+
 @tool
 def ascvd_risk_calculator(
     age: int,

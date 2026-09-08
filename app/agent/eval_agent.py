@@ -5,6 +5,7 @@ import logging
 from typing import Any
 
 from groq import Groq
+
 from app.config import settings
 
 log = logging.getLogger(__name__)

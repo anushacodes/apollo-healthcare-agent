@@ -4,7 +4,6 @@ import re
 import uuid
 from typing import Any
 
-
 _MAX_CHUNK_CHARS = 1600   # ~400 tokens
 _OVERLAP_CHARS   = 320    # ~80 tokens
 _MIN_SECTION_CHARS = 80   # skip pure headers / cross-reference stubs

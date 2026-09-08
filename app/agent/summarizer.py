@@ -3,16 +3,16 @@ from __future__ import annotations
 import json
 import logging
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
-from groq import Groq
 from google import genai
 from google.genai import types as genai_types
+from groq import Groq
 
+from app.agent.sqlite_cache import get_summary, hash_payload, set_summary
 from app.config import settings
 from app.models import ClinicalSummary
-from app.agent.sqlite_cache import get_summary, hash_payload, set_summary
 
 log = logging.getLogger(__name__)
 
@@ -190,7 +190,7 @@ def _fallback_summary(patient_data: dict, patient_id: str, model_used: str) -> C
         ),
         key_concerns=key_concerns,
         follow_up_actions=follow_up_actions,
-        generated_at=datetime.now(timezone.utc),
+        generated_at=datetime.now(UTC),
         model_used=model_used,
         patient_id=patient_id,
     )
@@ -254,7 +254,7 @@ def _validate(raw: dict[str, Any], patient_id: str, model_used: str, t0: float) 
         patient_facing_summary=raw.get("patient_facing_summary"),
         key_concerns=raw.get("key_concerns", []),
         follow_up_actions=raw.get("follow_up_actions", []),
-        generated_at=datetime.now(timezone.utc),
+        generated_at=datetime.now(UTC),
         model_used=model_used,
         patient_id=patient_id,
     )

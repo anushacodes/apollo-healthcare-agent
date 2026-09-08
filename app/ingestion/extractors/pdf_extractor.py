@@ -1,11 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
-import asyncio
 from functools import partial
 from pathlib import Path
-from typing import Optional
 
 from docling.document_converter import DocumentConverter
 
@@ -23,7 +22,7 @@ _MAX_CAPTION_PAGES = 3
 _note_gen = OCRNoteGenerator()
 
 # Public API
-def parse_pdf(file_path: str, *, out_dir: Optional[str] = None) -> ExtractionResult:
+def parse_pdf(file_path: str, *, out_dir: str | None = None) -> ExtractionResult:
     path = Path(file_path)
     if out_dir is None:
         out_dir = str(path.parent)
@@ -79,7 +78,7 @@ def parse_pdf(file_path: str, *, out_dir: Optional[str] = None) -> ExtractionRes
         formatted_output=formatted_output,
     )
 
-async def parse_pdf_async(file_path: str, *, out_dir: Optional[str] = None) -> ExtractionResult:
+async def parse_pdf_async(file_path: str, *, out_dir: str | None = None) -> ExtractionResult:
     loop = asyncio.get_running_loop()
     fn = partial(parse_pdf, file_path, out_dir=out_dir)
     return await loop.run_in_executor(None, fn)

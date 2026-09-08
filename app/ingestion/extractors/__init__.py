@@ -4,7 +4,7 @@ import hashlib
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+
 
 @dataclass
 class ExtractionResult:
@@ -54,9 +54,9 @@ class OCRNoteGenerator:
         self,
         text: str,
         confidence: float,
-        low_confidence_regions: Optional[list[str]] = None,
-        illegible_sections: Optional[list[str]] = None,
-        ink_artefacts: Optional[list[str]] = None,
+        low_confidence_regions: list[str] | None = None,
+        illegible_sections: list[str] | None = None,
+        ink_artefacts: list[str] | None = None,
     ) -> list[str]:
         notes: list[str] = []
 
@@ -99,7 +99,7 @@ def format_extraction_header(
     extractor_type: str,
     text_volume: int,
     needs_ocr_fallback: bool,
-    extra: Optional[dict] = None,
+    extra: dict | None = None,
 ) -> str:
     type_label = {
         "pdf": "DocumentConverter (typed document)",

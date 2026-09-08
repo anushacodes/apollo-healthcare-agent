@@ -1,20 +1,20 @@
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
-from typing import Optional
+from enum import StrEnum
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
+
 
 # Enums
-class LabFlag(str, Enum):
+class LabFlag(StrEnum):
     high = "high"
     low = "low"
     normal = "normal"
     critical_high = "critical_high"
     critical_low = "critical_low"
 
-class DiagnosisStatus(str, Enum):
+class DiagnosisStatus(StrEnum):
     active = "active"
     resolving = "resolving"
     resolved = "resolved"
@@ -22,7 +22,7 @@ class DiagnosisStatus(str, Enum):
     ruled_out = "ruled_out"
     improving = "improving"
 
-class TimelineCategory(str, Enum):
+class TimelineCategory(StrEnum):
     visit = "visit"
     lab = "lab"
     procedure = "procedure"
@@ -31,7 +31,7 @@ class TimelineCategory(str, Enum):
     imaging = "imaging"
     other = "other"
 
-class DocumentType(str, Enum):
+class DocumentType(StrEnum):
     handwritten_note = "handwritten_note"
     clinical_letter = "clinical_letter"
     lab_report = "lab_report"
@@ -43,26 +43,26 @@ class DocumentType(str, Enum):
 # Clinical sub-models
 class Diagnosis(BaseModel):
     name: str
-    icd_code: Optional[str] = None
-    date_first_noted: Optional[str] = None
+    icd_code: str | None = None
+    date_first_noted: str | None = None
     status: str = "active"
-    notes: Optional[str] = None
+    notes: str | None = None
 
 class Medication(BaseModel):
     name: str
-    dose: Optional[str] = None
-    frequency: Optional[str] = None
-    start_date: Optional[str] = None
-    prescribing_doctor: Optional[str] = None
-    indication: Optional[str] = None
+    dose: str | None = None
+    frequency: str | None = None
+    start_date: str | None = None
+    prescribing_doctor: str | None = None
+    indication: str | None = None
 
 class LabResult(BaseModel):
     test_name: str
     value: str
-    unit: Optional[str] = None
-    date: Optional[str] = None
+    unit: str | None = None
+    date: str | None = None
     flag: LabFlag = LabFlag.normal
-    reference_range: Optional[str] = None
+    reference_range: str | None = None
 
 class ClinicalFlag(BaseModel):
     text: str
@@ -78,7 +78,7 @@ class SourceDocument(BaseModel):
     type: DocumentType = DocumentType.other
     label: str
     icon: str = "📄"
-    description: Optional[str] = None
+    description: str | None = None
 
 # Structured Summarization Agent output
 class ClinicalSummary(BaseModel):
@@ -86,17 +86,17 @@ class ClinicalSummary(BaseModel):
     history_of_present_illness: str = Field(description="Concise HPI: onset, duration, character, associated symptoms, relevant past history, and recent trajectory.")
     clinical_assessment: str = Field(description="Clinical interpretation: active problems, disease severity, treatment response, and risk factors.")
     current_medications: list[str] = Field(default_factory=list, description="Each entry formatted as 'Drug name — dose, frequency'.")
-    patient_facing_summary: Optional[str] = Field(default=None, description="Plain-English summary written directly for the patient.")
+    patient_facing_summary: str | None = Field(default=None, description="Plain-English summary written directly for the patient.")
     key_concerns: list[str] = Field(default_factory=list, description="Bulleted list of the most urgent clinical concerns.")
     follow_up_actions: list[str] = Field(default_factory=list, description="Concrete next steps: tests, referrals, appointments.")
-    generated_at: Optional[datetime] = None
-    model_used: Optional[str] = None
-    patient_id: Optional[str] = None
+    generated_at: datetime | None = None
+    model_used: str | None = None
+    patient_id: str | None = None
 
 # Full patient record
 class PatientSummary(BaseModel):
     patient_id: str
-    generated_at: Optional[datetime] = None
+    generated_at: datetime | None = None
     summary_narrative: str = ""
     diagnoses: list[Diagnosis] = Field(default_factory=list)
     medications: list[Medication] = Field(default_factory=list)
@@ -104,7 +104,7 @@ class PatientSummary(BaseModel):
     lab_results: list[LabResult] = Field(default_factory=list)
     timeline: list[TimelineEvent] = Field(default_factory=list)
     clinical_flags: list[ClinicalFlag] = Field(default_factory=list)
-    clinical_summary: Optional[ClinicalSummary] = None
+    clinical_summary: ClinicalSummary | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -112,9 +112,9 @@ class PatientSummary(BaseModel):
 class Patient(BaseModel):
     patient_id: str
     name: str
-    dob: Optional[str] = None
-    mrn: Optional[str] = None
-    age: Optional[int] = None
+    dob: str | None = None
+    mrn: str | None = None
+    age: int | None = None
 
 # API request / response envelopes
 class SummarizeRequest(BaseModel):
@@ -126,8 +126,8 @@ class SummarizeResponse(BaseModel):
     patient_id: str
     summary: ClinicalSummary
     cached: bool = False
-    elapsed_ms: Optional[float] = None
+    elapsed_ms: float | None = None
 
 class ErrorResponse(BaseModel):
     detail: str
-    code: Optional[str] = None
+    code: str | None = None
