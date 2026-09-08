@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import tempfile
+from contextlib import contextmanager
 from functools import partial
 from pathlib import Path
 
@@ -21,18 +23,30 @@ _MAX_CAPTION_PAGES = 3
 
 _note_gen = OCRNoteGenerator()
 
+@contextmanager
+def _artefact_dir(out_dir: str | None):
+    """Caller-provided `out_dir` is kept on disk (explicit request to keep the
+    exported .md/.json). The default case writes to a throwaway temp dir that's
+    cleaned up once extraction finishes — nothing downstream reads these files
+    back off disk, only the in-memory return values are used."""
+    if out_dir is not None:
+        yield out_dir
+        return
+    with tempfile.TemporaryDirectory(prefix="apollo_docling_") as tmp_dir:
+        yield tmp_dir
+
+
 # Public API
 def parse_pdf(file_path: str, *, out_dir: str | None = None) -> ExtractionResult:
     path = Path(file_path)
-    if out_dir is None:
-        out_dir = str(path.parent)
 
     converter = DocumentConverter()
     result = converter.convert(str(path))
     doc = result.document
 
     base_name = path.stem
-    md_text, tables, sections, page_count = _export_artefacts(doc, out_dir, base_name)
+    with _artefact_dir(out_dir) as resolved_out_dir:
+        md_text, tables, sections, page_count = _export_artefacts(doc, resolved_out_dir, base_name)
 
     text_volume = len(md_text)
     needs_ocr_fallback = text_volume < OCR_THRESHOLD
