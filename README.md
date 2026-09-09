@@ -56,7 +56,7 @@ Query Router → {Patient Docs, Curated Corpus, Web Search (fallback)}
 ```
 - Router classifies the question and picks retrieval sources
 - Patient docs (Qdrant + SQLite FTS5, fused with RRF) and a curated clinical guideline corpus are searched; live web search fills in when both come back sparse
-- Generator answers with `llama-3.3-70b-versatile`, citing specific sources
+- Generator answers with `openai/gpt-oss-120b`, citing specific sources
 - Every answer is scored for faithfulness/hallucination against its retrieved chunks before it's returned
 - SQLite answer cache makes repeated questions instant
 
@@ -122,7 +122,7 @@ curl http://localhost:8000/api/agent/cases
 # Run the diagnostics pipeline for a demo case (non-streaming variant)
 curl -X POST http://localhost:8000/api/agent/run/demo-case-a \
   -H "Content-Type: application/json" \
-  -d '{"case_key": "case_a"}'
+  -d '{"case": "case_a"}'
 
 # Ingest a document for RAG
 curl -X POST http://localhost:8000/api/rag/ingest/demo-case-a \
@@ -204,7 +204,7 @@ docker-compose.yml
 | Layer | Technology | Purpose |
 |---|---|---|
 | Orchestration | LangGraph | Real fan-out/fan-in graph + streaming RAG graph |
-| LLM | Groq (`llama-3.3-70b-versatile`, `llama-3.1-8b-instant`) | Generation, structured extraction, eval |
+| LLM | Groq (`openai/gpt-oss-120b`, `openai/gpt-oss-20b`) | Generation, structured extraction, eval |
 | Retrieval | Qdrant (dense) + SQLite FTS5 (sparse), RRF fusion | Hybrid patient-document and corpus search |
 | Knowledge base | Local JSON, 25 conditions | Condition/symptom lookup |
 | Document parsing | Docling, PyMuPDF | PDF/image/audio ingestion |

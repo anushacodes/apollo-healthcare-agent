@@ -105,6 +105,7 @@ def run_eval(
             ],
             temperature=0.0,
             max_tokens=600,
+            reasoning_effort="low",
             response_format={"type": "json_object"},
         )
         scores = json.loads(response.choices[0].message.content)
