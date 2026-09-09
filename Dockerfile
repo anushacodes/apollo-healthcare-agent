@@ -22,7 +22,7 @@ RUN pip install --no-cache-dir .
 COPY app /app/app
 COPY scripts /app/scripts
 COPY data /app/data
-COPY kg /app/kg
+COPY knowledge_graph /app/knowledge_graph
 
 # Ensure data directories exist
 RUN mkdir -p /app/data/patients /app/data/seed /app/data/.cache

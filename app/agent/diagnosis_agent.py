@@ -40,7 +40,7 @@ def _call_llm(context: str) -> dict[str, Any]:
             {"role": "user", "content": f"=== PATIENT DATA ===\n\n{context}"},
         ],
         temperature=0.2,
-        max_tokens=2048,
+        max_tokens=4096,
         response_format={"type": "json_object"},
     )
     return json.loads(response.choices[0].message.content)

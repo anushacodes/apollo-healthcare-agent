@@ -34,13 +34,13 @@ def _groq_json(user: str, system: str = "") -> dict:
         model=settings.groq_model,
         messages=messages,
         temperature=0.1,
-        max_tokens=512,
+        max_tokens=2048,
         response_format={"type": "json_object"},
     )
     return json.loads(resp.choices[0].message.content)
 
 
-def _groq_text(system: str, user: str, max_tokens: int = 1200) -> str:
+def _groq_text(system: str, user: str, max_tokens: int = 2048) -> str:
     resp = get_groq_client().chat.completions.create(
         model=settings.groq_model,
         messages=[

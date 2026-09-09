@@ -21,7 +21,7 @@ log = logging.getLogger(__name__)
 
 # ── LLM helpers ──────────────────────────────────────────────────────────────
 
-def _call_groq_json(system: str, user: str, max_tokens: int = 1024) -> dict:
+def _call_groq_json(system: str, user: str, max_tokens: int = 4096) -> dict:
     client = get_groq_client()
     response = client.chat.completions.create(
         model=settings.groq_model,
