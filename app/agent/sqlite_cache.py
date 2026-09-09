@@ -52,14 +52,6 @@ def init_db() -> None:
         with _get_conn() as conn:
             conn.executescript(
                 """
-                CREATE TABLE IF NOT EXISTS pubmed_cache (
-                    patient_id TEXT,
-                    query TEXT,
-                    papers JSON,
-                    updated_at REAL DEFAULT (unixepoch()),
-                    PRIMARY KEY (patient_id, query)
-                );
-
                 CREATE TABLE IF NOT EXISTS rag_answer_cache (
                     patient_id TEXT,
                     question TEXT,
@@ -181,24 +173,6 @@ def _set_json_row(
             conn.execute(sql, params)
     except Exception as exc:
         log.error("[sqlite_cache] write error to %s: %s", table, exc)
-
-
-def get_pubmed(patient_id: str, query: str, *, max_age_seconds: int | None = 7 * 24 * 3600) -> list | None:
-    return _get_json_row(
-        "pubmed_cache",
-        {"patient_id": patient_id, "query": normalize_query(query)},
-        "papers",
-        max_age_seconds=max_age_seconds,
-    )
-
-
-def set_pubmed(patient_id: str, query: str, papers: list) -> None:
-    _set_json_row(
-        "pubmed_cache",
-        {"patient_id": patient_id, "query": normalize_query(query)},
-        "papers",
-        papers,
-    )
 
 
 def get_answer(patient_id: str, question: str, *, max_age_seconds: int | None = 7 * 24 * 3600) -> dict | None:

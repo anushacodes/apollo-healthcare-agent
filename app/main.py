@@ -48,6 +48,14 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         log.warning("[startup] Embedding pre-load failed (non-fatal): %s", exc)
 
+    # One-time embed of the curated corpus (idempotent — skips already-indexed files)
+    try:
+        from app.ingestion.corpus import index_corpus
+        upserted = await index_corpus()
+        log.info("[startup] Curated corpus indexed (%d new chunks upserted).", upserted)
+    except Exception as exc:
+        log.warning("[startup] Curated corpus indexing failed (non-fatal): %s", exc)
+
     yield
     # Shutdown (nothing to clean up yet)
 

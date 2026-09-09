@@ -7,7 +7,6 @@ from fastapi import APIRouter, File, HTTPException, UploadFile, WebSocket, WebSo
 from pydantic import BaseModel
 
 from app.agent.rag_agent import run_rag_streaming
-from app.agent.research_agent import fetch_pubmed, prefetch_pubmed_background
 from app.agent.seed_patient import get_case
 from app.agent.sqlite_cache import hash_text, mark_document_indexed
 from app.config import settings
@@ -51,15 +50,6 @@ async def rag_stream(websocket: WebSocket, patient_id: str):
 
         patient_data.setdefault("patient_id", patient_id)
 
-        # ⚡ Background prefetch — fire PubMed fetch in a background thread NOW,
-        # so that by the time the RAG pipeline hits research_fetcher the papers
-        # are already cached / embedded and the node returns instantly.
-        diagnoses = [
-            d.get("name", "") if isinstance(d, dict) else str(d)
-            for d in patient_data.get("summary", {}).get("diagnoses", [])
-        ]
-        prefetch_pubmed_background(patient_id, diagnoses, question)
-
         async for event in run_rag_streaming(patient_id, patient_data, question):
             await websocket.send_json(event)
 
@@ -71,42 +61,6 @@ async def rag_stream(websocket: WebSocket, patient_id: str):
             await websocket.send_json({"type": "error", "message": str(exc)})
         except Exception:
             pass
-
-
-@router.get("/research/{patient_id}")
-async def get_research(patient_id: str, case_key: str | None = None):
-    """
-    Fetch and return PubMed papers for a patient's diagnoses.
-    Papers are embedded into Qdrant for subsequent RAG queries.
-    """
-    patient_data: dict = {}
-    if case_key:
-        patient_data = get_case(case_key) or {}
-
-    diagnoses = [
-        d.get("name", "") if isinstance(d, dict) else str(d)
-        for d in patient_data.get("summary", {}).get("diagnoses", [])
-    ]
-    if not diagnoses:
-        raise HTTPException(400, "No diagnoses found for this patient")
-
-    papers = fetch_pubmed(patient_id, diagnoses)
-    return {
-        "patient_id":  patient_id,
-        "paper_count": len(papers),
-        "papers": [
-            {
-                "pmid":    p["pmid"],
-                "title":   p["title"],
-                "journal": p["journal"],
-                "year":    p["year"],
-                "doi":     p["doi"],
-                "url":     p["url"],
-                "abstract_snippet": p["abstract"][:300] + "..." if len(p["abstract"]) > 300 else p["abstract"],
-            }
-            for p in papers
-        ],
-    }
 
 
 async def _read_upload_capped(file: UploadFile) -> bytes:
