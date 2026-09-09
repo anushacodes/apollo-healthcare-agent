@@ -25,12 +25,6 @@ const API = (() => {
     return r.json();
   }
 
-  async function triggerKgSeed(force = false) {
-    const r = await fetch(`${BASE}/api/kg/seed?force=${force}`, { method: 'POST' });
-    if (!r.ok) throw new Error(`triggerKgSeed: ${r.status}`);
-    return r.json();
-  }
-
   /**
    * Run the agent pipeline over WebSocket.
    * @param {string} patientId
@@ -61,7 +55,7 @@ const API = (() => {
     });
   }
 
-  return { getCases, getCaseData, getKgStatus, triggerKgSeed, runAgentWs };
+  return { getCases, getCaseData, getKgStatus, runAgentWs };
 })();
 
 window.API = API;

@@ -21,20 +21,12 @@ log = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    if settings.has_neo4j:
-        try:
-            from app.agent.kg_loader import kg_status
-            status = kg_status()
-            log.info(
-                f"[startup] Neo4j available. "
-                f"Local: {status['local_conditions']} conditions, "
-                f"Neo4j: {status['neo4j_conditions_seeded']} seeded. "
-                f"KG loads on-demand — use POST /api/kg/seed to bulk import."
-            )
-        except Exception as exc:
-            log.warning(f"[startup] Neo4j status check failed (non-fatal): {exc}")
-    else:
-        log.info("[startup] Neo4j not configured — using local JSON KG with on-demand loading")
+    try:
+        from app.agent.kg_loader import kg_status
+        status = kg_status()
+        log.info(f"[startup] Local KG loaded: {status['local_conditions']} conditions.")
+    except Exception as exc:
+        log.warning(f"[startup] KG status check failed (non-fatal): {exc}")
 
     # Pre-load the sentence-transformers encoder once so the first request is instant.
     # This also warms the Qdrant connection so the first query doesn't pay a cold-start penalty.

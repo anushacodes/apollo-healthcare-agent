@@ -721,17 +721,6 @@ body.app-body {
 .kg-dot.offline { background: var(--border-strong); }
 .kg-label { flex: 1; }
 .kg-val { font-family: var(--font-mono); font-size: 10px; }
-.kg-seed-btn {
-  font-size: 10px; font-weight: 600;
-  color: var(--accent-bright);
-  padding: 2px 7px;
-  border: 1px solid var(--accent-border);
-  border-radius: 4px;
-  background: var(--accent-dim);
-  cursor: pointer;
-  transition: all var(--t-fast) var(--ease);
-}
-.kg-seed-btn:hover { background: var(--accent); color: #fff; }
 
 /* ══════════════════════════════════════════════════════════
    Diagnostics tab
@@ -776,7 +765,6 @@ body.app-body {
 .diag-pill.groq       { background: rgba(99,102,241,0.12); color: #A5B4FC; border-color: rgba(99,102,241,0.3); }
 .diag-pill.gemini     { background: rgba(16,185,129,0.10); color: #6EE7B7; border-color: rgba(16,185,129,0.3); }
 .diag-pill.openrouter { background: rgba(245,158,11,0.10); color: #FDE68A; border-color: rgba(245,158,11,0.3); }
-.diag-pill.neo4j      { background: rgba(59,130,246,0.10); color: #93C5FD; border-color: rgba(59,130,246,0.3); }
 
 .btn-run-agent {
   display: inline-flex; align-items: center; gap: 8px;
