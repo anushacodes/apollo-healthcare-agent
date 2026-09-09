@@ -185,7 +185,8 @@ def orchestrator_node(state: AgentState) -> AgentState:
         f"{len(params['symptoms_for_kg'])} KG symptom(s)."
     )
     if error_chain:
-        audit_entry += f" [provider errors: {'; '.join(error_chain)}]"
+        log.warning("[orchestrator] LLM provider errors: %s", "; ".join(error_chain))
+        audit_entry += " [one or more providers were unavailable, used structured data only]"
 
     return {"anonymized_notes": context, "extracted_params": params, "audit_log": [audit_entry]}
 
@@ -266,7 +267,8 @@ def diagnosis_node(state: AgentState) -> AgentState:
             "differential_notes":         "Fallback from structured diagnoses — diagnosis model unavailable.",
             "recommended_investigations": [],
         }
-        audit_entry = f"Diagnosis Agent: provider unavailable, used structured fallback — {exc}"
+        log.warning("[diagnosis_node] LLM provider failed, using fallback: %s", exc)
+        audit_entry = "Diagnosis Agent: provider unavailable, used structured fallback."
 
     set_node_cache("diagnosis", cache_key, diagnoses)
     return {"diagnoses": diagnoses, "audit_log": [audit_entry]}
@@ -314,7 +316,8 @@ def summarizer_node(state: AgentState) -> AgentState:
             f"follow-up actions: {len(summary.follow_up_actions)}."
         )
     except Exception as exc:
+        log.warning("[summarizer_node] Summary generation failed: %s", exc)
         summary     = None
-        audit_entry = f"Summarizer: failed — {exc}"
+        audit_entry = "Summarizer: failed to generate a summary."
 
     return {"final_summary": summary, "audit_log": [audit_entry]}
