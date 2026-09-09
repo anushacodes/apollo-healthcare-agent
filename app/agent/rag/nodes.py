@@ -7,7 +7,6 @@ import logging
 from app.agent.eval_agent import run_eval
 from app.agent.rag.prompts import _FOLLOW_UP_PROMPT, _GENERATOR_PROMPT, _ROUTER_PROMPT
 from app.agent.rag.state import RAGState
-from app.agent.research_agent import fetch_pubmed
 from app.agent.sqlite_cache import (
     hash_payload,
     hash_text,
@@ -16,6 +15,7 @@ from app.agent.sqlite_cache import (
 )
 from app.config import settings
 from app.ingestion.chunker import chunk_text
+from app.ingestion.corpus import CORPUS_DOC_TYPE, CORPUS_NAMESPACE
 from app.ingestion.embedder import embed_chunks_async, search_chunks_async
 from app.llm_client import get_groq_client
 
@@ -344,24 +344,21 @@ async def research_fetcher_node(state: RAGState) -> RAGState:
         return state
 
     log.info("[rag] research_fetcher starting")
-    diagnoses = [d.get("name", "") if isinstance(d, dict) else str(d)
-                 for d in state["patient_data"].get("summary", {}).get("diagnoses", [])]
-    thinking = _ev("research_fetcher", "thinking",
-                   f"Querying PubMed for: {', '.join(diagnoses[:2])}...",
-                   {"diagnoses": diagnoses[:3]})
+    thinking = _ev("research_fetcher", "thinking", "Searching curated clinical guideline corpus...")
 
-    await asyncio.to_thread(fetch_pubmed, state["patient_id"], diagnoses, state["reformulated_query"])
-    results = await search_chunks_async(state["reformulated_query"], state["patient_id"], top_k=6, doc_type="pubmed_abstract")
+    results = await search_chunks_async(
+        state["reformulated_query"], CORPUS_NAMESPACE, top_k=6, doc_type=CORPUS_DOC_TYPE
+    )
 
-    journals = list({c.get("journal", "") for c in results if c.get("journal")})
+    sources = list({c.get("source_doc", "") for c in results if c.get("source_doc")})
     result = _ev("research_fetcher", "result",
                  (
-                     f"Found {len(results)} relevant research chunk(s)"
-                     + (f" ({', '.join(journals[:3])})" if journals else "")
+                     f"Found {len(results)} relevant guideline chunk(s)"
+                     + (f" ({', '.join(sources[:3])})" if sources else "")
                      if results
-                     else "No indexed PubMed chunks yet; background fetch started"
+                     else "No relevant guideline chunks found"
                  ),
-                 {"chunk_count": len(results), "journals": journals, "background_prefetch": True})
+                 {"chunk_count": len(results), "sources": sources})
 
     return {**state,
             "research_chunks": results,
@@ -369,7 +366,7 @@ async def research_fetcher_node(state: RAGState) -> RAGState:
 
 
 def web_search_node(state: RAGState) -> RAGState:
-    """Falls back to web search if combined chunk count < 3 after PubMed + patient docs."""
+    """Falls back to web search if combined chunk count < 3 after corpus + patient docs."""
     combined = state["patient_chunks"] + state["research_chunks"]
     if len(combined) >= 3 or state["route"] == "patient_docs":
         return state
@@ -379,7 +376,7 @@ def web_search_node(state: RAGState) -> RAGState:
                  for d in state["patient_data"].get("summary", {}).get("diagnoses", [])]
     source_label = "Tavily (clinical web)" if settings.has_tavily else "DuckDuckGo"
     thinking = _ev("web_search", "thinking",
-                   f"PubMed results sparse — searching {source_label} for clinical evidence...")
+                   f"Corpus results sparse — searching {source_label} for clinical evidence...")
 
     chunks = _web_search_chunks(state["reformulated_query"], state["patient_id"], diagnoses)
     result = _ev("web_search", "result",
@@ -439,8 +436,7 @@ def generator_node(state: RAGState) -> RAGState:
     if not state["context_sufficient"]:
         refusal = (
             "No relevant sources were found for this question. "
-            "This may mean the RAG index is still building (PubMed abstracts are being embedded). "
-            "Try again in a few seconds, or upload patient documents in the Documents tab."
+            "Try rephrasing, or upload patient documents in the Documents tab."
         )
         return {**state,
                 "raw_answer": refusal,

@@ -8,13 +8,12 @@ Run this ONCE before launching the server:
 What it does:
   1. Loads the sentence-transformers model once (it stays in process memory)
   2. Embeds all 3 demo patient source documents into Qdrant + SQLite FTS
-  3. Fetches & embeds PubMed papers for all demo case diagnoses
+  3. Embeds the curated corpus (data/corpus/*.md)
   4. Runs the full RAG pipeline for every suggestion-chip question on every case
   5. Saves all answers to apollo_cache.db
 
 After this runs, the app will:
   - Skip all embedding on first request (SQLite indexed_documents check passes)
-  - Skip all PubMed HTTP calls (SQLite pubmed_cache hit)
   - Skip the entire RAG pipeline for known questions (SQLite rag_answer_cache hit)
   - Load the sentence-transformers model once at app startup (not per-request)
 """
@@ -125,29 +124,16 @@ def warm_patient_docs() -> None:
     gc.collect()
 
 
-# ── Phase 3: Pre-fetch PubMed for all demo cases ─────────────────────────
-def warm_pubmed() -> None:
-    log.info("Phase 3 — Pre-fetching PubMed papers for all demo cases…")
-    from app.agent.research_agent import fetch_pubmed
-    from app.agent.seed_patient import CASES
+# ── Phase 3: Embed the curated corpus ─────────────────────────────────────
+async def warm_corpus() -> None:
+    log.info("Phase 3 — Embedding curated corpus…")
+    from app.ingestion.corpus import index_corpus
 
-    for case_key, loader in CASES.items():
-        case_data  = loader()
-        patient_id = case_data.get("patient_id", case_key)
-        diagnoses  = [
-            d.get("name", "") if isinstance(d, dict) else str(d)
-            for d in case_data.get("summary", {}).get("diagnoses", [])
-        ]
-        if not diagnoses:
-            log.info("  [%s] No diagnoses — skipping PubMed", case_key)
-            continue
-
-        log.info("  [%s] Fetching PubMed for: %s", case_key, diagnoses[:2])
-        t0 = time.perf_counter()
-        papers = fetch_pubmed(patient_id, diagnoses)
-        elapsed = time.perf_counter() - t0
-        log.info("  [%s] ✓ %d papers in %.1fs", case_key, len(papers), elapsed)
-        gc.collect()  # free abstract embedding workspace before next case
+    t0 = time.perf_counter()
+    upserted = await index_corpus()
+    elapsed = time.perf_counter() - t0
+    log.info("  ✓ %d chunks upserted in %.1fs", upserted, elapsed)
+    gc.collect()
 
 
 # ── Phase 4: Pre-run RAG pipeline for all questions ───────────────────────
@@ -198,7 +184,7 @@ def print_stats() -> None:
     from app.agent.sqlite_cache import DB_PATH, _get_conn
     log.info("Cache DB: %s", DB_PATH)
     with _get_conn() as conn:
-        for table in ["pubmed_cache", "rag_answer_cache", "indexed_documents", "chunk_cache"]:
+        for table in ["rag_answer_cache", "indexed_documents", "chunk_cache"]:
             try:
                 n = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
                 log.info("  %-25s  %d rows", table, n)
@@ -214,16 +200,16 @@ async def main() -> None:
         "--answers",
         action="store_true",
         help="Also pre-generate RAG answers (slow, requires live LLM API calls). "
-             "Omit for a fast, RAM-safe warmup of embeddings + PubMed only.",
+             "Omit for a fast, RAM-safe warmup of embeddings + corpus only.",
     )
     args = parser.parse_args()
 
     log.info("=" * 60)
     log.info("Apollo Cache Warmer")
     if args.answers:
-        log.info("Mode: FULL (embeddings + PubMed + RAG answers)")
+        log.info("Mode: FULL (embeddings + corpus + RAG answers)")
     else:
-        log.info("Mode: FAST (embeddings + PubMed only)")
+        log.info("Mode: FAST (embeddings + corpus only)")
         log.info("Tip: run with --answers to also pre-cache RAG responses.")
     log.info("=" * 60)
 
@@ -231,7 +217,7 @@ async def main() -> None:
 
     warm_encoder()
     warm_patient_docs()
-    warm_pubmed()
+    await warm_corpus()
 
     if args.answers:
         await warm_rag_answers()

@@ -20,12 +20,12 @@ from app.ingestion.parser import parse_document, supported_extensions
 SEED_DIR = Path(__file__).parent.parent / "data" / "seed"
 
 TARGET_FILES = [
-    "james_hartwell_handwritten_note_1.txt",  # simulated OCR output → transcript
-    "james_hartwell_handwritten_note_2.txt",
-    "james_hartwell_clinical_report.txt",
-    "james_hartwell_labs.txt",
-    "james_hartwell_xray_report.txt",
-    "james_hartwell_transcript.txt",
+    "case_a_handwritten_note_1.txt",  # simulated OCR output → transcript
+    "case_a_handwritten_note_2.txt",
+    "case_a_clinical_report.txt",
+    "case_a_labs.txt",
+    "case_a_xray_report.txt",
+    "case_a_transcript.txt",
 ]
 
 

@@ -28,13 +28,13 @@ window.AskController = (function () {
           <div class="ask-header-info">
             <h2 class="ask-title">Ask the Clinical Agent</h2>
             <p class="ask-sub">
-              Answers grounded in patient documents, PubMed literature, and live
+              Answers grounded in patient documents, a curated clinical guideline corpus, and live
               clinical web search. Every claim is cited and evaluated before delivery.
             </p>
           </div>
           <div class="ask-badges">
             <span class="ask-badge">RAG</span>
-            <span class="ask-badge">PubMed</span>
+            <span class="ask-badge">Corpus</span>
             <span class="ask-badge">Tavily</span>
             <span class="ask-badge">Eval Gate</span>
           </div>
@@ -184,7 +184,7 @@ window.AskController = (function () {
   const NODE_LABELS = {
     query_router:      'Query Router',
     patient_retriever: 'Patient Docs',
-    research_fetcher:  'PubMed',
+    research_fetcher:  'Corpus Search',
     web_search:        'Web Search',
     context_assembler: 'Assembler',
     sufficiency_judge: 'Coverage Check',
@@ -203,7 +203,6 @@ window.AskController = (function () {
     if (data && type === 'result') {
       if (data.route)              pills += `<span class="trace-pill">${data.route}</span>`;
       if (data.chunk_count != null) pills += `<span class="trace-pill">${data.chunk_count} chunks</span>`;
-      if (data.paper_count != null) pills += `<span class="trace-pill">${data.paper_count} papers</span>`;
       if (data.cached)             pills += `<span class="trace-pill pill-good">⚡ cached</span>`;
       if (data.faithfulness != null) {
         const pct = Math.round(data.faithfulness * 100);
@@ -252,10 +251,9 @@ window.AskController = (function () {
         <div class="ask-refusal">
           <div class="ask-refusal-icon">🔍</div>
           <div class="ask-refusal-body">
-            <strong>Sources still indexing</strong>
-            <p>PubMed abstracts are being embedded into the vector store.
-               This usually takes 10–30 seconds on first run.</p>
-            <p>Try again in a moment, or upload patient documents in the <strong>Documents</strong> tab to get answers grounded in actual patient data.</p>
+            <strong>No sources found</strong>
+            <p>Nothing relevant was found in the curated guideline corpus or this patient's documents.</p>
+            <p>Try rephrasing the question, or upload patient documents in the <strong>Documents</strong> tab to get answers grounded in actual patient data.</p>
           </div>
         </div>`;
       answerEl.insertAdjacentElement('afterbegin', toggle);
