@@ -144,8 +144,8 @@ def _extract_structured_params(patient_data: dict) -> dict:
 
 def orchestrator_node(state: AgentState) -> AgentState:
     log.info("[orchestrator] Starting")
-    context    = build_context(state["patient_data"])
-    structured = _extract_structured_params(state["patient_data"])
+    context    = build_context(state.patient_data)
+    structured = _extract_structured_params(state.patient_data)
 
     llm_params:  dict = {}
     error_chain: list = []
@@ -194,10 +194,10 @@ def orchestrator_node(state: AgentState) -> AgentState:
 def drug_graph_node(state: AgentState) -> AgentState:
     """Queries KG and checks drug interactions."""
     log.info("[drug_graph_node] Running")
-    s           = state["patient_data"].get("summary", {})
+    s           = state.patient_data.get("summary", {})
     medications = [m.get("name", str(m)) if isinstance(m, dict) else str(m) for m in s.get("medications", [])]
     diagnoses   = [d.get("name", str(d)) if isinstance(d, dict) else str(d) for d in s.get("diagnoses", [])]
-    symptoms    = state["extracted_params"].get("symptoms_for_kg", [])
+    symptoms    = state.extracted_params.get("symptoms_for_kg", [])
 
     cache_key = hash_payload({"medications": medications, "diagnoses": diagnoses, "symptoms": symptoms})
     cached    = get_node_cache("drug_graph", cache_key)
@@ -226,13 +226,13 @@ def drug_graph_node(state: AgentState) -> AgentState:
 def diagnosis_node(state: AgentState) -> AgentState:
     """Runs after drug_graph_node so kg_matches are available."""
     log.info("[diagnosis_node] Running")
-    enriched_context = state["anonymized_notes"]
-    for match in state.get("kg_matches", [])[:3]:
+    enriched_context = state.anonymized_notes
+    for match in state.kg_matches[:3]:
         condition_data = kg_loader.get_condition(match["condition"])
         if condition_data:
             enriched_context += f"\n\nKG CONTEXT — {match['condition']}:\n{json.dumps(condition_data, indent=2)}"
 
-    cache_key = hash_payload({"context": enriched_context, "patient_id": state["patient_id"]})
+    cache_key = hash_payload({"context": enriched_context, "patient_id": state.patient_id})
     cached    = get_node_cache("diagnosis", cache_key)
     if cached:
         return {"diagnoses": cached, "audit_log": ["Diagnosis Agent: loaded cached analysis."]}
@@ -246,7 +246,7 @@ def diagnosis_node(state: AgentState) -> AgentState:
             f"Primary: {primary}. KG-enriched context used."
         )
     except Exception as exc:
-        baseline_dx = state["patient_data"].get("summary", {}).get("diagnoses", [])
+        baseline_dx = state.patient_data.get("summary", {}).get("diagnoses", [])
         diagnoses = {
             "error": str(exc),
             "proposed_diagnoses": [
@@ -277,7 +277,7 @@ def diagnosis_node(state: AgentState) -> AgentState:
 def tool_node(state: AgentState) -> AgentState:
     """Runs clinical calculators from orchestrator-extracted parameters."""
     log.info("[tool_node] Running clinical calculators")
-    calculator_calls = state["extracted_params"].get("calculator_calls", [])
+    calculator_calls = state.extracted_params.get("calculator_calls", [])
     results = []
 
     for call in calculator_calls:
@@ -303,10 +303,10 @@ def tool_node(state: AgentState) -> AgentState:
 def summarizer_node(state: AgentState) -> AgentState:
     """Final node — synthesizes all agent outputs into a ClinicalSummary."""
     log.info("[summarizer_node] Running")
-    enriched_patient = dict(state["patient_data"])
-    enriched_patient["agent_diagnoses"]    = state.get("diagnoses", {})
-    enriched_patient["calculator_results"] = state.get("calculator_results", [])
-    enriched_patient["drug_interactions"]  = state.get("interactions", {})
+    enriched_patient = dict(state.patient_data)
+    enriched_patient["agent_diagnoses"]    = state.diagnoses
+    enriched_patient["calculator_results"] = state.calculator_results
+    enriched_patient["drug_interactions"]  = state.interactions
 
     try:
         summary     = run_summarizer(enriched_patient)

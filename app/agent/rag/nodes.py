@@ -278,22 +278,22 @@ def _build_patient_summary_chunk(patient_data: dict, patient_id: str) -> dict | 
 
 # ── Nodes ─────────────────────────────────────────────────────────────────────
 
-def query_router_node(state: RAGState) -> RAGState:
+def query_router_node(state: RAGState) -> dict:
     log.info("[rag] query_router starting")
     thinking = _ev("query_router", "thinking", "Classifying your question and selecting sources...")
 
-    route, reformulated, reasoning = "both", state["question"], ""
+    route, reformulated, reasoning = "both", state.question, ""
     try:
-        patient   = state["patient_data"].get("patient", {})
+        patient   = state.patient_data.get("patient", {})
         diagnoses = [d.get("name", "") if isinstance(d, dict) else d
-                     for d in state["patient_data"].get("summary", {}).get("diagnoses", [])]
+                     for d in state.patient_data.get("summary", {}).get("diagnoses", [])]
         ctx = f"Patient: {patient.get('name', '?')}, Age: {patient.get('age', '?')}, Diagnoses: {diagnoses[:3]}"
         res = _groq_json(
-            user=f"Patient context: {ctx}\n\nQuestion: {state['question']}",
+            user=f"Patient context: {ctx}\n\nQuestion: {state.question}",
             system=_ROUTER_PROMPT,
         )
         route        = res.get("route", "both")
-        reformulated = res.get("reformulated_query", state["question"])
+        reformulated = res.get("reformulated_query", state.question)
         reasoning    = res.get("reasoning", "")
     except Exception as exc:
         log.warning("[rag] Router failed: %s", exc)
@@ -302,20 +302,21 @@ def query_router_node(state: RAGState) -> RAGState:
                  f"Routing to: {route} | Query: \"{reformulated}\"",
                  {"route": route, "reformulated_query": reformulated, "reasoning": reasoning})
 
-    return {**state,
-            "route": route,
-            "reformulated_query": reformulated,
-            "thinking_log": state["thinking_log"] + [thinking, result]}
+    return {
+        "route": route,
+        "reformulated_query": reformulated,
+        "thinking_log": [thinking, result],
+    }
 
 
-async def patient_retriever_node(state: RAGState) -> RAGState:
+async def patient_retriever_node(state: RAGState) -> dict:
     log.info("[rag] patient_retriever starting")
     thinking = _ev("patient_retriever", "thinking", "Searching uploaded patient documents...")
 
-    source_docs = state["patient_data"].get("source_documents", {})
-    new_docs = await _ensure_patient_documents_embedded(state["patient_id"], source_docs) if source_docs else 0
+    source_docs = state.patient_data.get("source_documents", {})
+    new_docs = await _ensure_patient_documents_embedded(state.patient_id, source_docs) if source_docs else 0
 
-    results = await search_chunks_async(state["reformulated_query"], state["patient_id"], top_k=8)
+    results = await search_chunks_async(state.reformulated_query, state.patient_id, top_k=8)
     sources = list({c.get("source_doc", "") for c in results})
 
     if results:
@@ -333,16 +334,14 @@ async def patient_retriever_node(state: RAGState) -> RAGState:
         {"chunk_count": len(results), "sources": sources, "new_docs_indexed": new_docs},
     )
 
-    return {**state,
-            "patient_chunks": results,
-            "thinking_log": state["thinking_log"] + [thinking, result]}
+    return {"patient_chunks": results, "thinking_log": [thinking, result]}
 
 
-async def research_fetcher_node(state: RAGState) -> RAGState:
+async def research_fetcher_node(state: RAGState) -> dict:
     log.info("[rag] research_fetcher starting")
     thinking = _ev("research_fetcher", "thinking", "Searching curated clinical guideline corpus...")
 
-    results = await call_search_clinical_guidelines(state["reformulated_query"], top_k=6)
+    results = await call_search_clinical_guidelines(state.reformulated_query, top_k=6)
 
     sources = list({c.get("source_doc", "") for c in results if c.get("source_doc")})
     result = _ev("research_fetcher", "result",
@@ -354,96 +353,87 @@ async def research_fetcher_node(state: RAGState) -> RAGState:
                  ),
                  {"chunk_count": len(results), "sources": sources})
 
-    return {**state,
-            "research_chunks": results,
-            "thinking_log": state["thinking_log"] + [thinking, result]}
+    return {"research_chunks": results, "thinking_log": [thinking, result]}
 
 
-def retrieval_gate_node(state: RAGState) -> RAGState:
+def retrieval_gate_node(state: RAGState) -> dict:
     """
     Fan-in point after patient_retriever/research_fetcher. Does no work itself —
     exists so the graph has a single place to route from once whichever
     retrieval branches ran have both completed.
     """
-    return state
+    return {}
 
 
-def web_search_node(state: RAGState) -> RAGState:
+def web_search_node(state: RAGState) -> dict:
     """Web search fallback — only reached via graph routing when combined chunk count is sparse."""
     log.info("[rag] web_search fallback starting")
     diagnoses = [d.get("name", "") if isinstance(d, dict) else str(d)
-                 for d in state["patient_data"].get("summary", {}).get("diagnoses", [])]
+                 for d in state.patient_data.get("summary", {}).get("diagnoses", [])]
     source_label = "Tavily (clinical web)" if settings.has_tavily else "DuckDuckGo"
     thinking = _ev("web_search", "thinking",
                    f"Corpus results sparse — searching {source_label} for clinical evidence...")
 
-    chunks = _web_search_chunks(state["reformulated_query"], state["patient_id"], diagnoses)
+    chunks = _web_search_chunks(state.reformulated_query, state.patient_id, diagnoses)
     result = _ev("web_search", "result",
                  f"Found {len(chunks)} web results from clinical sources" if chunks
                  else "Web search returned no results",
                  {"chunk_count": len(chunks)})
 
-    return {**state,
-            "web_chunks": chunks,
-            "thinking_log": state["thinking_log"] + [thinking, result]}
+    return {"web_chunks": chunks, "thinking_log": [thinking, result]}
 
 
-def context_assembler_node(state: RAGState) -> RAGState:
+def context_assembler_node(state: RAGState) -> dict:
     seen, merged = set(), []
 
-    if state["route"] != "research":
-        summary_chunk = _build_patient_summary_chunk(state["patient_data"], state["patient_id"])
+    if state.route != "research":
+        summary_chunk = _build_patient_summary_chunk(state.patient_data, state.patient_id)
         if summary_chunk:
             seen.add(summary_chunk["text"][:80])
             merged.append(summary_chunk)
 
-    for chunk in state["patient_chunks"] + state["research_chunks"] + state["web_chunks"]:
+    for chunk in state.patient_chunks + state.research_chunks + state.web_chunks:
         key = chunk.get("text", "")[:80]
         if key not in seen:
             seen.add(key)
             merged.append(chunk)
 
     merged.sort(key=lambda c: c.get("score", 0), reverse=True)
-    return {**state, "all_chunks": merged[:14]}
+    return {"all_chunks": merged[:14]}
 
 
-def sufficiency_judge_node(state: RAGState) -> RAGState:
+def sufficiency_judge_node(state: RAGState) -> dict:
     log.info("[rag] sufficiency_judge starting")
-    chunks  = state["all_chunks"]
+    chunks  = state.all_chunks
     thinking = _ev("sufficiency_judge", "thinking", "Assessing context coverage...")
 
     if len(chunks) >= 2:
         result = _ev("sufficiency_judge", "result",
                      f"Context sufficient — {len(chunks)} chunks available",
                      {"sufficient": True, "confidence": 0.85})
-        return {**state,
-                "context_sufficient": True,
-                "thinking_log": state["thinking_log"] + [thinking, result]}
+        return {"context_sufficient": True, "thinking_log": [thinking, result]}
 
     result = _ev("sufficiency_judge", "result",
                  "Insufficient context — will note in response",
                  {"sufficient": False, "confidence": 0.0})
-    return {**state,
-            "context_sufficient": False,
-            "thinking_log": state["thinking_log"] + [thinking, result]}
+    return {"context_sufficient": False, "thinking_log": [thinking, result]}
 
 
-def generator_node(state: RAGState) -> RAGState:
+def generator_node(state: RAGState) -> dict:
     log.info("[rag] generator starting")
-    chunks = state["all_chunks"]
+    chunks = state.all_chunks
 
-    if not state["context_sufficient"]:
+    if not state.context_sufficient:
         refusal = (
             "No relevant sources were found for this question. "
             "Try rephrasing, or upload patient documents in the Documents tab."
         )
-        return {**state,
-                "raw_answer": refusal,
-                "is_refusal": True,
-                "citations":  [],
-                "thinking_log": state["thinking_log"] + [
-                    _ev("generator", "result", "Returning context-not-found message", {})
-                ]}
+        return {
+            "raw_answer": refusal,
+            "is_refusal": True,
+            "citations":  [],
+            "thinking_log": [_ev("generator", "result", "Returning context-not-found message", {})],
+        }
 
     thinking = _ev("generator", "thinking", f"Generating grounded response from {len(chunks)} chunks...")
 
@@ -452,9 +442,9 @@ def generator_node(state: RAGState) -> RAGState:
         answer = _groq_text(
             system=_GENERATOR_PROMPT.format(
                 chunks=_format_chunks(chunks),
-                question=state["question"],
+                question=state.question,
             ),
-            user=state["question"],
+            user=state.question,
         )
     except Exception as exc:
         log.error("[rag] Generator failed: %s", exc)
@@ -478,23 +468,24 @@ def generator_node(state: RAGState) -> RAGState:
                  f"Answer ready — {len(citations)} citation(s)",
                  {"citation_count": len(citations)})
 
-    return {**state,
-            "raw_answer": answer,
-            "is_refusal": False,
-            "citations":  citations,
-            "thinking_log": state["thinking_log"] + [thinking, result]}
+    return {
+        "raw_answer": answer,
+        "is_refusal": False,
+        "citations":  citations,
+        "thinking_log": [thinking, result],
+    }
 
 
-def eval_node(state: RAGState) -> RAGState:
+def eval_node(state: RAGState) -> dict:
     log.info("[rag] eval starting")
 
     thinking = _ev("eval_agent", "thinking", "Checking every claim for faithfulness to sources...")
 
-    scores  = run_eval(question=state["question"], answer=state["raw_answer"], chunks=state["all_chunks"])
+    scores  = run_eval(question=state.question, answer=state.raw_answer, chunks=state.all_chunks)
     faith   = scores.get("faithfulness", 1.0)
     hallu   = scores.get("hallucination_detected", False)
 
-    final = state["raw_answer"]
+    final = state.raw_answer
     if faith < 0.70 or hallu:
         final += f"\n\n⚠️ **Eval Agent Warning:** Faithfulness is low ({faith:.0%}).\n"
         if scores.get("unsupported_claims"):
@@ -504,18 +495,15 @@ def eval_node(state: RAGState) -> RAGState:
                  f"Faithfulness: {faith:.0%} | {'Hallucination ⚠' if hallu else 'Verified ✓'}",
                  scores)
 
-    return {**state,
-            "eval_scores":    scores,
-            "final_response": final,
-            "thinking_log":   state["thinking_log"] + [thinking, result]}
+    return {"eval_scores": scores, "final_response": final, "thinking_log": [thinking, result]}
 
 
-def follow_up_node(state: RAGState) -> RAGState:
+def follow_up_node(state: RAGState) -> dict:
     log.info("[rag] follow_up starting")
     thinking = _ev("follow_up_agent", "thinking", "Generating dynamic follow-up questions...")
     try:
         res = _groq_json(
-            user=f"Question: {state['question']}\n\nAnswer: {state['raw_answer']}",
+            user=f"Question: {state.question}\n\nAnswer: {state.raw_answer}",
             system=_FOLLOW_UP_PROMPT,
         )
         follow_ups = res.get("follow_up_questions", [])
@@ -527,6 +515,4 @@ def follow_up_node(state: RAGState) -> RAGState:
                  f"Generated {len(follow_ups)} follow-up questions",
                  {"follow_ups": follow_ups})
 
-    return {**state,
-            "follow_ups":   follow_ups,
-            "thinking_log": state["thinking_log"] + [thinking, result]}
+    return {"follow_ups": follow_ups, "thinking_log": [thinking, result]}

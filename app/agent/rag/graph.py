@@ -28,25 +28,24 @@ log = logging.getLogger(__name__)
 
 def _route_from_query_router(state: RAGState) -> list[str]:
     """Fan out to whichever retrieval branch(es) the router's route decision calls for."""
-    route = state["route"]
-    if route == "patient_docs":
+    if state.route == "patient_docs":
         return ["patient_retriever"]
-    if route == "research":
+    if state.route == "research":
         return ["research_fetcher"]
     return ["patient_retriever", "research_fetcher"]
 
 
 def _route_after_retrieval(state: RAGState) -> str:
     """Fall back to web search only when patient docs + corpus results came back sparse."""
-    if state["route"] == "patient_docs":
+    if state.route == "patient_docs":
         return "context_assembler"
-    combined = len(state["patient_chunks"]) + len(state["research_chunks"])
+    combined = len(state.patient_chunks) + len(state.research_chunks)
     return "context_assembler" if combined >= 3 else "web_search"
 
 
 def _route_after_generation(state: RAGState) -> str:
     """Refusals skip straight to the end — nothing to evaluate or follow up on."""
-    return END if state.get("is_refusal") else "eval_agent"
+    return END if state.is_refusal else "eval_agent"
 
 
 def _build_rag_graph() -> StateGraph:
@@ -101,37 +100,29 @@ async def run_rag_streaming(
         yield {"type": "done", "node": "cache", "message": "Response ready", "data": cached_answer}
         return
 
-    initial: RAGState = {
-        "patient_id":         patient_id,
-        "patient_data":       patient_data,
-        "question":           question,
-        "route":              "both",
-        "reformulated_query": question,
-        "patient_chunks":     [],
-        "research_chunks":    [],
-        "web_chunks":         [],
-        "all_chunks":         [],
-        "context_sufficient": True,
-        "is_refusal":         False,
-        "raw_answer":         "",
-        "eval_scores":        {},
-        "final_response":     "",
-        "citations":          [],
-        "error":              None,
-        "thinking_log":       [],
-        "follow_ups":         [],
-    }
+    initial = RAGState(
+        patient_id=patient_id,
+        patient_data=patient_data,
+        question=question,
+        reformulated_query=question,
+    )
 
-    yielded_count  = 0
+    # Node returns are partial updates (only the fields that node changed), not
+    # the full state — accumulate them ourselves so downstream events here can
+    # still read fields set by earlier nodes (e.g. "route" from query_router).
+    accumulated: dict[str, Any] = initial.model_dump()
     answer_yielded = False
 
     async for event in rag_graph.astream(initial):
         for node_name, node_state in event.items():
-            tlog       = node_state.get("thinking_log", [])
-            new_entries = tlog[yielded_count:]
+            # A node with no actual field updates (e.g. retrieval_gate) surfaces as None here.
+            node_state = node_state or {}
+            new_entries = node_state.get("thinking_log", [])
             for entry in new_entries:
                 yield entry
-            yielded_count = len(tlog)
+
+            accumulated["thinking_log"] = accumulated["thinking_log"] + new_entries
+            accumulated.update({k: v for k, v in node_state.items() if k != "thinking_log"})
 
             if node_name == "generator" and not answer_yielded:
                 answer_yielded = True
@@ -140,18 +131,18 @@ async def run_rag_streaming(
                     "node":    "generator",
                     "message": "Response ready",
                     "data": {
-                        "final_response": node_state.get("raw_answer", ""),
-                        "citations":      node_state.get("citations", []),
+                        "final_response": accumulated.get("raw_answer", ""),
+                        "citations":      accumulated.get("citations", []),
                         "eval_scores":    {},
-                        "route":          node_state.get("route", ""),
-                        "is_refusal":     node_state.get("is_refusal", False),
+                        "route":          accumulated.get("route", ""),
+                        "is_refusal":     accumulated.get("is_refusal", False),
                         "follow_ups":     [],
                     },
                 }
 
             elif node_name == "eval_agent":
-                eval_scores = node_state.get("eval_scores", {})
-                final       = node_state.get("final_response", node_state.get("raw_answer", ""))
+                eval_scores = accumulated.get("eval_scores", {})
+                final       = accumulated.get("final_response", accumulated.get("raw_answer", ""))
                 yield {
                     "type":    "patch_eval",
                     "node":    "eval_agent",
@@ -160,16 +151,16 @@ async def run_rag_streaming(
                 }
 
             elif node_name == "follow_up_agent":
-                follow_ups  = node_state.get("follow_ups", [])
+                follow_ups  = accumulated.get("follow_ups", [])
                 result_data = {
-                    "final_response": node_state.get("final_response", ""),
-                    "citations":      node_state.get("citations", []),
-                    "eval_scores":    node_state.get("eval_scores", {}),
-                    "route":          node_state.get("route", ""),
-                    "is_refusal":     node_state.get("is_refusal", False),
+                    "final_response": accumulated.get("final_response", ""),
+                    "citations":      accumulated.get("citations", []),
+                    "eval_scores":    accumulated.get("eval_scores", {}),
+                    "route":          accumulated.get("route", ""),
+                    "is_refusal":     accumulated.get("is_refusal", False),
                     "follow_ups":     follow_ups,
                 }
-                if not node_state.get("is_refusal", True):
+                if not accumulated.get("is_refusal", True):
                     await asyncio.to_thread(set_answer, cache_patient_id, question, result_data)
 
                 yield {
