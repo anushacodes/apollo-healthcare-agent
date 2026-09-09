@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import re
 from dataclasses import dataclass
@@ -58,13 +59,12 @@ def parse_transcript(file_path: str, *, out_dir: str | None = None) -> Extractio
     if not turns:
         notes.append("No timestamp/speaker structure detected — treated as free prose.")
 
+    file_hash = hashlib.sha256(raw_text.encode("utf-8")).hexdigest()
     header_lines = [
         "============================================================",
-        f"  WHISPER TRANSCRIPTION OUTPUT — SOURCE: {path.name}",
-        "  MODEL: openai/whisper-base",
+        f"  TRANSCRIPT — SOURCE: {path.name}",
         f"  DURATION: {duration_str}",
-        "  LANGUAGE: en (confidence 0.99)",
-        f"  FILE HASH: sha256:{'a' * 32}...   (computed at ingest time)",
+        f"  FILE HASH: sha256:{file_hash}",
         "============================================================",
         "",
     ]
