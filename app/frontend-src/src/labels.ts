@@ -76,9 +76,15 @@ export function explainIcdCode(code?: string): string | null {
 }
 
 export function explainLabFlag(flag?: string): string {
+  if (flag === 'critical_high') return 'critically higher than the normal range'
+  if (flag === 'critical_low') return 'critically lower than the normal range'
   if (flag === 'high') return 'higher than the normal range'
   if (flag === 'low') return 'lower than the normal range'
   return 'within the normal range'
+}
+
+export function isCriticalLabFlag(flag?: string): boolean {
+  return flag === 'critical_high' || flag === 'critical_low'
 }
 
 export function explainCalculatorKey(key: string): string {

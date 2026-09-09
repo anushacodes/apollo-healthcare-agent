@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { DetailToggle } from '../components/DetailToggle'
-import { explainIcdCode, explainLabFlag } from '../labels'
+import { explainIcdCode, explainLabFlag, isCriticalLabFlag } from '../labels'
 import type { PatientData } from '../types'
 
 export function SummaryTab({ patient }: { patient: PatientData }) {
@@ -71,14 +71,17 @@ export function SummaryTab({ patient }: { patient: PatientData }) {
       </FactSection>
 
       <FactSection title="Recent labs" count={s.lab_results?.length}>
-        {(s.lab_results || []).map((l, i) => (
-          <div key={i} className="flex items-center justify-between border-b border-gray-100 py-2 last:border-0 text-sm">
-            <span className="text-gray-800">{l.test_name}</span>
-            <span className="text-gray-500">
-              {l.value} {l.unit} — {explainLabFlag(l.flag)}
-            </span>
-          </div>
-        ))}
+        {(s.lab_results || []).map((l, i) => {
+          const critical = isCriticalLabFlag(l.flag)
+          return (
+            <div key={i} className="flex items-center justify-between border-b border-gray-100 py-2 last:border-0 text-sm">
+              <span className="text-gray-800">{l.test_name}</span>
+              <span className={critical ? 'font-medium text-red-600' : 'text-gray-500'}>
+                {l.value} {l.unit} — {explainLabFlag(l.flag)}
+              </span>
+            </div>
+          )
+        })}
       </FactSection>
 
       {/* Technical view: everything, unfiltered */}
