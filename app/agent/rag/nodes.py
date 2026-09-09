@@ -35,6 +35,7 @@ def _groq_json(user: str, system: str = "") -> dict:
         messages=messages,
         temperature=0.1,
         max_tokens=2048,
+        reasoning_effort="low",
         response_format={"type": "json_object"},
     )
     return json.loads(resp.choices[0].message.content)
@@ -49,6 +50,7 @@ def _groq_text(system: str, user: str, max_tokens: int = 2048) -> str:
         ],
         temperature=0.2,
         max_tokens=max_tokens,
+        reasoning_effort="low",
     )
     return resp.choices[0].message.content.strip()
 
