@@ -156,9 +156,8 @@
     renderPatientHeader(patient);
     renderSummary(patient);
     renderUpload(patient, demo);
-    // Ask + Research: reset so they reinit for new patient
+    // Ask: reset so it reinits for new patient
     document.getElementById('tab-ask').innerHTML = '';
-    document.getElementById('tab-research').innerHTML = '';
     // Diagnostics renders on-demand when tab is activated
   }
 
@@ -217,11 +216,6 @@
     if (tabId === 'ask' && currentPatient) {
       if (!document.querySelector('.ask-layout')) {
         window.AskController?.init(currentPatient);
-      }
-    }
-    if (tabId === 'research' && currentPatient) {
-      if (!document.querySelector('.research-layout')) {
-        window.ResearchController?.init(currentPatient);
       }
     }
   }
