@@ -22,18 +22,6 @@ AVAILABLE CALCULATORS AND THEIR EXACT PARAMETER NAMES:
    congestive_heart_failure, hypertension, age_75_or_over, diabetes,
    stroke_or_tia_history, vascular_disease, age_65_to_74, female_sex
 
-Return ONLY valid JSON:
-{
-  "calculator_calls": [
-    {
-      "tool": "<exact tool name from above>",
-      "params": { "<exact param name>": <value>, ... }
-    }
-  ],
-  "symptoms_for_kg": ["<symptom 1>", "<symptom 2>", ...],
-  "routing_notes": "<brief note on which agents to prioritise>"
-}
-
 Rules:
 - Use EXACT parameter names as listed above (e.g. "active_cancer" not "malignancy").
 - Omit boolean params you cannot determine — they default to false safely.

@@ -4,8 +4,10 @@ import json
 import logging
 
 import httpx
+from pydantic import ValidationError
 
 from app.agent import kg_loader
+from app.agent.contracts import CalculatorCall, OrchestratorPlan
 from app.agent.diagnosis_agent import run_diagnosis_agent
 from app.agent.diagnostics.prompts import _ORCHESTRATOR_PROMPT
 from app.agent.diagnostics.state import AgentState
@@ -14,24 +16,23 @@ from app.agent.sqlite_cache import get_node_cache, hash_payload, set_node_cache
 from app.agent.summarizer import build_context, run_summarizer
 from app.agent.tools import TOOL_MAP
 from app.config import settings
-from app.llm_client import get_groq_client
+from app.llm_client import get_structured_groq_client
 
 log = logging.getLogger(__name__)
 
 
 # ── LLM helpers ──────────────────────────────────────────────────────────────
 
-def _call_groq_json(system: str, user: str, max_tokens: int = 4096) -> dict:
-    client = get_groq_client()
-    response = client.chat.completions.create(
+def _call_orchestrator_llm(context: str) -> OrchestratorPlan:
+    client = get_structured_groq_client()
+    return client.chat.completions.create(
         model=settings.groq_model,
-        messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+        response_model=OrchestratorPlan,
+        messages=[{"role": "system", "content": _ORCHESTRATOR_PROMPT}, {"role": "user", "content": context}],
         temperature=0.1,
-        max_tokens=max_tokens,
+        max_tokens=4096,
         reasoning_effort="low",
-        response_format={"type": "json_object"},
     )
-    return json.loads(response.choices[0].message.content)
 
 
 def _call_openrouter_json(system: str, user: str) -> dict:
@@ -142,41 +143,42 @@ def _extract_structured_params(patient_data: dict) -> dict:
 
 # ── Nodes ─────────────────────────────────────────────────────────────────────
 
-def orchestrator_node(state: AgentState) -> AgentState:
+def orchestrator_node(state: AgentState) -> dict:
     log.info("[orchestrator] Starting")
     context    = build_context(state.patient_data)
     structured = _extract_structured_params(state.patient_data)
 
-    llm_params:  dict = {}
-    error_chain: list = []
+    plan: OrchestratorPlan = OrchestratorPlan()
+    error_chain: list[str] = []
 
     if settings.has_groq:
         try:
-            llm_params = _call_groq_json(_ORCHESTRATOR_PROMPT, context)
+            plan = _call_orchestrator_llm(context)
         except Exception as exc:
             error_chain.append(f"Groq: {exc}")
 
-    if not llm_params and settings.has_openrouter:
+    if not plan.calculator_calls and not plan.symptoms_for_kg and settings.has_openrouter:
         try:
-            llm_params = _call_openrouter_json(_ORCHESTRATOR_PROMPT, context)
-        except Exception as exc:
+            raw = _call_openrouter_json(_ORCHESTRATOR_PROMPT, context)
+            plan = OrchestratorPlan.model_validate(raw)
+        except (httpx.HTTPError, ValidationError, json.JSONDecodeError) as exc:
             error_chain.append(f"OpenRouter: {exc}")
 
-    llm_calls    = {c["tool"]: c.get("params", {}) for c in llm_params.get("calculator_calls", [])}
-    merged_calls = []
+    llm_calls: dict[str, dict] = {c.tool: c.params for c in plan.calculator_calls}
+    merged_calls: list[CalculatorCall] = []
     for tool_name, struct_params in structured.items():
         llm_booleans = {k: v for k, v in llm_calls.get(tool_name, {}).items()
                         if isinstance(v, bool) and k not in struct_params}
-        merged_calls.append({"tool": tool_name, "params": {**struct_params, **llm_booleans}})
+        merged_calls.append(CalculatorCall(tool=tool_name, params={**struct_params, **llm_booleans}))
 
     for tool_name, llm_p in llm_calls.items():
         if tool_name not in structured:
-            merged_calls.append({"tool": tool_name, "params": llm_p})
+            merged_calls.append(CalculatorCall(tool=tool_name, params=llm_p))
 
     params = {
-        "calculator_calls": merged_calls,
-        "symptoms_for_kg":  llm_params.get("symptoms_for_kg", []),
-        "routing_notes":    llm_params.get("routing_notes", ""),
+        "calculator_calls": [c.model_dump() for c in merged_calls],
+        "symptoms_for_kg":  plan.symptoms_for_kg,
+        "routing_notes":    plan.routing_notes,
     }
 
     audit_entry = (
@@ -191,7 +193,7 @@ def orchestrator_node(state: AgentState) -> AgentState:
     return {"anonymized_notes": context, "extracted_params": params, "audit_log": [audit_entry]}
 
 
-def drug_graph_node(state: AgentState) -> AgentState:
+def drug_graph_node(state: AgentState) -> dict:
     """Queries KG and checks drug interactions."""
     log.info("[drug_graph_node] Running")
     s           = state.patient_data.get("summary", {})
@@ -208,9 +210,10 @@ def drug_graph_node(state: AgentState) -> AgentState:
             "audit_log":    [f"Drug/KG Node: loaded cached analysis for {len(medications)} drug(s)."],
         }
 
-    kg_matches   = kg_loader.search_by_symptoms(symptoms) if symptoms else []
-    interactions = run_drug_interaction_agent(medications, diagnoses, symptoms)
-    set_node_cache("drug_graph", cache_key, {"kg_matches": kg_matches, "interactions": interactions})
+    kg_matches = kg_loader.search_by_symptoms(symptoms) if symptoms else []
+    interactions, succeeded = run_drug_interaction_agent(medications, diagnoses, symptoms)
+    if succeeded:
+        set_node_cache("drug_graph", cache_key, {"kg_matches": kg_matches, "interactions": interactions})
 
     return {
         "interactions": interactions,
@@ -223,7 +226,7 @@ def drug_graph_node(state: AgentState) -> AgentState:
     }
 
 
-def diagnosis_node(state: AgentState) -> AgentState:
+def diagnosis_node(state: AgentState) -> dict:
     """Runs after drug_graph_node so kg_matches are available."""
     log.info("[diagnosis_node] Running")
     enriched_context = state.anonymized_notes
@@ -237,6 +240,7 @@ def diagnosis_node(state: AgentState) -> AgentState:
     if cached:
         return {"diagnoses": cached, "audit_log": ["Diagnosis Agent: loaded cached analysis."]}
 
+    used_fallback = False
     try:
         diagnoses = run_diagnosis_agent(enriched_context)
         primary   = diagnoses.get("primary_diagnosis", "unknown")
@@ -246,6 +250,7 @@ def diagnosis_node(state: AgentState) -> AgentState:
             f"Primary: {primary}. KG-enriched context used."
         )
     except Exception as exc:
+        used_fallback = True
         baseline_dx = state.patient_data.get("summary", {}).get("diagnoses", [])
         diagnoses = {
             "error": str(exc),
@@ -270,11 +275,12 @@ def diagnosis_node(state: AgentState) -> AgentState:
         log.warning("[diagnosis_node] LLM provider failed, using fallback: %s", exc)
         audit_entry = "Diagnosis Agent: provider unavailable, used structured fallback."
 
-    set_node_cache("diagnosis", cache_key, diagnoses)
+    if not used_fallback:
+        set_node_cache("diagnosis", cache_key, diagnoses)
     return {"diagnoses": diagnoses, "audit_log": [audit_entry]}
 
 
-def tool_node(state: AgentState) -> AgentState:
+def tool_node(state: AgentState) -> dict:
     """Runs clinical calculators from orchestrator-extracted parameters."""
     log.info("[tool_node] Running clinical calculators")
     calculator_calls = state.extracted_params.get("calculator_calls", [])
@@ -300,7 +306,7 @@ def tool_node(state: AgentState) -> AgentState:
     return {"calculator_results": results, "audit_log": [audit_entry]}
 
 
-def summarizer_node(state: AgentState) -> AgentState:
+def summarizer_node(state: AgentState) -> dict:
     """Final node — synthesizes all agent outputs into a ClinicalSummary."""
     log.info("[summarizer_node] Running")
     enriched_patient = dict(state.patient_data)

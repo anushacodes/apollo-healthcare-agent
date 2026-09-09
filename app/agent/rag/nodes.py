@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
+from typing import TypeVar
 
+from pydantic import BaseModel
+
+from app.agent.contracts import FollowUpQuestions, RouterDecision
 from app.agent.eval_agent import run_eval
 from app.agent.rag.prompts import _FOLLOW_UP_PROMPT, _GENERATOR_PROMPT, _ROUTER_PROMPT
 from app.agent.rag.state import RAGState
@@ -16,29 +19,30 @@ from app.agent.sqlite_cache import (
 from app.config import settings
 from app.ingestion.chunker import chunk_text
 from app.ingestion.embedder import embed_chunks_async, search_chunks_async
-from app.llm_client import get_groq_client
+from app.llm_client import get_groq_client, get_structured_groq_client
 from app.mcp.client import call_search_clinical_guidelines
 
 log = logging.getLogger(__name__)
 
+_T = TypeVar("_T", bound=BaseModel)
+
 
 # ── LLM helpers ──────────────────────────────────────────────────────────────
 
-def _groq_json(user: str, system: str = "") -> dict:
-    client = get_groq_client()
+def _groq_structured(response_model: type[_T], user: str, system: str = "") -> _T:
+    client = get_structured_groq_client()
     messages = []
     if system:
         messages.append({"role": "system", "content": system})
     messages.append({"role": "user", "content": user})
-    resp = client.chat.completions.create(
+    return client.chat.completions.create(
         model=settings.groq_model,
+        response_model=response_model,
         messages=messages,
         temperature=0.1,
         max_tokens=2048,
         reasoning_effort="low",
-        response_format={"type": "json_object"},
     )
-    return json.loads(resp.choices[0].message.content)
 
 
 def _groq_text(system: str, user: str, max_tokens: int = 2048) -> str:
@@ -288,13 +292,14 @@ def query_router_node(state: RAGState) -> dict:
         diagnoses = [d.get("name", "") if isinstance(d, dict) else d
                      for d in state.patient_data.get("summary", {}).get("diagnoses", [])]
         ctx = f"Patient: {patient.get('name', '?')}, Age: {patient.get('age', '?')}, Diagnoses: {diagnoses[:3]}"
-        res = _groq_json(
+        decision = _groq_structured(
+            RouterDecision,
             user=f"Patient context: {ctx}\n\nQuestion: {state.question}",
             system=_ROUTER_PROMPT,
         )
-        route        = res.get("route", "both")
-        reformulated = res.get("reformulated_query", state.question)
-        reasoning    = res.get("reasoning", "")
+        route        = decision.route
+        reformulated = decision.reformulated_query or state.question
+        reasoning    = decision.reasoning
     except Exception as exc:
         log.warning("[rag] Router failed: %s", exc)
 
@@ -502,11 +507,12 @@ def follow_up_node(state: RAGState) -> dict:
     log.info("[rag] follow_up starting")
     thinking = _ev("follow_up_agent", "thinking", "Generating dynamic follow-up questions...")
     try:
-        res = _groq_json(
+        result_model = _groq_structured(
+            FollowUpQuestions,
             user=f"Question: {state.question}\n\nAnswer: {state.raw_answer}",
             system=_FOLLOW_UP_PROMPT,
         )
-        follow_ups = res.get("follow_up_questions", [])
+        follow_ups = result_model.follow_up_questions
     except Exception as exc:
         log.warning("[rag] Follow-up generation failed: %s", exc)
         follow_ups = []

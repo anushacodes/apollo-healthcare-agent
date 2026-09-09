@@ -1,40 +1,27 @@
 from __future__ import annotations
 
-import json
 import logging
-from typing import Any
 
+from app.agent.contracts import DiagnosisResult
 from app.config import settings
-from app.llm_client import get_groq_client
+from app.llm_client import get_structured_groq_client
 
 log = logging.getLogger(__name__)
 
 _SYSTEM_PROMPT = """\
 You are an expert clinical diagnostician. Read the patient's clinical notes,
-lab results, and history. Propose the most likely differential diagnoses.
-
-Return ONLY valid JSON:
-{
-  "proposed_diagnoses": [
-    {
-      "name": "<condition name>",
-      "icd_code": "<ICD-10 code if known>",
-      "confidence": "high|moderate|low",
-      "supporting_evidence": ["<evidence 1>", "..."],
-      "reasoning": "<brief clinical reasoning>"
-    }
-  ],
-  "primary_diagnosis": "<most likely diagnosis>",
-  "differential_notes": "<key differentials to rule out>",
-  "recommended_investigations": ["<test 1>", "..."]
-}
+lab results, and history. Propose the most likely differential diagnoses,
+each with an ICD-10 code where known, a confidence level, supporting
+evidence, and brief clinical reasoning. Name the single most likely primary
+diagnosis, note key differentials to rule out, and recommend investigations.
 """
 
 
-def _call_llm(context: str) -> dict[str, Any]:
-    client = get_groq_client()
-    response = client.chat.completions.create(
+def _call_llm(context: str) -> DiagnosisResult:
+    client = get_structured_groq_client()
+    return client.chat.completions.create(
         model=settings.groq_model,
+        response_model=DiagnosisResult,
         messages=[
             {"role": "system", "content": _SYSTEM_PROMPT},
             {"role": "user", "content": f"=== PATIENT DATA ===\n\n{context}"},
@@ -42,17 +29,17 @@ def _call_llm(context: str) -> dict[str, Any]:
         temperature=0.2,
         max_tokens=4096,
         reasoning_effort="low",
-        response_format={"type": "json_object"},
     )
-    return json.loads(response.choices[0].message.content)
 
 
-def run_diagnosis_agent(context: str) -> dict[str, Any]:
+def run_diagnosis_agent(context: str) -> dict:
     """
-    Propose differential diagnoses from clinical context.
-    Raises RuntimeError if Groq is unavailable.
+    Propose differential diagnoses from clinical context. The LLM call is
+    validated against `DiagnosisResult` via tool-calling before it's dumped
+    back to a dict for the rest of the pipeline. Raises RuntimeError if
+    Groq is unavailable.
     """
     if not settings.has_groq:
         raise RuntimeError("Diagnosis agent: GROQ_API_KEY not set.")
     log.info("[diagnosis_agent] Running (%s)", settings.groq_model)
-    return _call_llm(context)
+    return _call_llm(context).model_dump()

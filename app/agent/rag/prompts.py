@@ -3,14 +3,7 @@ You are a clinical query router. Given a patient question, decide:
 1. route: "patient_docs" = question about this specific patient's records only.
    "research" = question about treatment guidelines, clinical evidence, general medical knowledge.
    "both" = needs both patient record AND clinical literature.
-2. A short, precise medical search query (no date filters, no operators — just key terms).
-
-Return ONLY valid JSON:
-{
-  "route": "patient_docs|research|both",
-  "reformulated_query": "<key medical terms only>",
-  "reasoning": "<one sentence>"
-}
+2. A short, precise medical search query (no date filters, no operators — just key terms), plus one sentence of reasoning for the route chosen.
 """
 
 _GENERATOR_PROMPT = """\
@@ -37,9 +30,4 @@ _FOLLOW_UP_PROMPT = """\
 You are an expert clinical AI. Based on the RAG context and the answer just provided,
 generate 3 insightful, dynamic follow-up questions the clinician might want to ask next.
 Make them highly specific to the patient's condition, recent labs, or the provided research.
-
-Return ONLY valid JSON:
-{
-  "follow_up_questions": ["Question 1", "Question 2", "Question 3"]
-}
 """

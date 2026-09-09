@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any
 
+from app.agent.contracts import EvalScores
 from app.config import settings
-from app.llm_client import get_groq_client
+from app.llm_client import get_structured_groq_client
 
 log = logging.getLogger(__name__)
 
@@ -41,18 +41,6 @@ Instructions:
 5. answer_completeness: how fully does the answer address the question? (0.0–1.0)
 6. hallucination_detected: true ONLY if a specific unsupported claim is present.
 7. List only the truly unsupported claims (those with fabricated specifics).
-
-Return ONLY valid JSON:
-{{
-  "faithfulness": 0.0,
-  "context_relevance": 0.0,
-  "answer_completeness": 0.0,
-  "hallucination_detected": false,
-  "total_claims": 0,
-  "supported_claims": 0,
-  "unsupported_claims": [],
-  "evaluation_notes": ""
-}}
 """
 
 _FAITHFULNESS_GATE = 0.70
@@ -76,16 +64,15 @@ def run_eval(
     Returns eval scores dict. Never blocks output — only annotates low scores.
     """
     if not chunks:
-        return {
-            "faithfulness": 0.0,
-            "context_relevance": 0.0,
-            "answer_completeness": 0.0,
-            "hallucination_detected": True,
-            "blocked": True,
-            "block_reason": "No source chunks were retrieved — cannot verify answer.",
-            "unsupported_claims": [],
-            "evaluation_notes": "No context provided for evaluation.",
-        }
+        return EvalScores(
+            faithfulness=0.0,
+            context_relevance=0.0,
+            answer_completeness=0.0,
+            hallucination_detected=True,
+            blocked=True,
+            block_reason="No source chunks were retrieved — cannot verify answer.",
+            evaluation_notes="No context provided for evaluation.",
+        ).model_dump()
 
     chunk_text = _format_chunks_for_eval(chunks)
     prompt = _EVAL_PROMPT.format(
@@ -94,11 +81,11 @@ def run_eval(
         answer=answer[:2000],
     )
 
-    scores: dict[str, Any] = {}
     try:
-        client = get_groq_client()
-        response = client.chat.completions.create(
+        client = get_structured_groq_client()
+        result: EvalScores = client.chat.completions.create(
             model=settings.groq_eval_model,
+            response_model=EvalScores,
             messages=[
                 {"role": "system", "content": _EVAL_SYSTEM},
                 {"role": "user", "content": prompt},
@@ -106,34 +93,19 @@ def run_eval(
             temperature=0.0,
             max_tokens=2048,
             reasoning_effort="low",
-            response_format={"type": "json_object"},
         )
-        scores = json.loads(response.choices[0].message.content)
     except Exception as exc:
         log.error("[eval] Scoring failed: %s", exc)
-        return {
-            "faithfulness": 1.0,
-            "context_relevance": 1.0,
-            "answer_completeness": 1.0,
-            "hallucination_detected": False,
-            "blocked": False,
-            "block_reason": None,
-            "evaluation_notes": f"Eval agent unavailable: {exc}",
-            "unsupported_claims": [],
-        }
-
-    faith = float(scores.get("faithfulness", 1.0))
-    hallucinated = bool(scores.get("hallucination_detected", False))
-
-    scores["blocked"] = False
-    scores["block_reason"] = None
+        return EvalScores(
+            evaluation_notes=f"Eval agent unavailable: {exc}",
+        ).model_dump()
 
     log.info(
         "[eval] faith=%.2f relevance=%.2f completeness=%.2f hallucination=%s",
-        faith,
-        float(scores.get("context_relevance", 0)),
-        float(scores.get("answer_completeness", 0)),
-        hallucinated,
+        result.faithfulness,
+        result.context_relevance,
+        result.answer_completeness,
+        result.hallucination_detected,
     )
-    return scores
+    return result.model_dump()
 
