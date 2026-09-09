@@ -30,10 +30,6 @@ class Settings(BaseSettings):
     qdrant_url: str = Field(default="http://localhost:6333", alias="QDRANT_URL")
     qdrant_api_key: str | None = Field(default=None, alias="QDRANT_API_KEY")
 
-    neo4j_uri: str = Field(default="bolt://localhost:7687", alias="NEO4J_URI")
-    neo4j_user: str = Field(default="neo4j", alias="NEO4J_USER")
-    neo4j_password: str | None = Field(default=None, alias="NEO4J_PASSWORD")
-
     langfuse_public_key: str | None = Field(default=None, alias="LANGFUSE_PUBLIC_KEY")
     langfuse_secret_key: str | None = Field(default=None, alias="LANGFUSE_SECRET_KEY")
     langfuse_host: str = Field(default="http://localhost:3001", alias="LANGFUSE_HOST")
@@ -91,11 +87,6 @@ class Settings(BaseSettings):
     @property
     def has_openrouter(self) -> bool:
         return bool(self.openrouter_api_key)
-
-    @computed_field
-    @property
-    def has_neo4j(self) -> bool:
-        return bool(self.neo4j_password)
 
     @computed_field
     @property
