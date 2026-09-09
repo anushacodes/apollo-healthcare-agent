@@ -44,6 +44,7 @@ dependencies = [
     "sentence-transformers>=2.7.0",
     "duckduckgo-search>=6.0",
     "charset-normalizer>=3.5.1",
+    "fastmcp>=4.0.3",
 ]
 
 # Heavy / system-level deps — install manually when needed:

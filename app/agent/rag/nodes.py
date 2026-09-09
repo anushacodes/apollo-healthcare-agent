@@ -15,9 +15,9 @@ from app.agent.sqlite_cache import (
 )
 from app.config import settings
 from app.ingestion.chunker import chunk_text
-from app.ingestion.corpus import CORPUS_DOC_TYPE, CORPUS_NAMESPACE
 from app.ingestion.embedder import embed_chunks_async, search_chunks_async
 from app.llm_client import get_groq_client
+from app.mcp.client import call_search_clinical_guidelines
 
 log = logging.getLogger(__name__)
 
@@ -348,9 +348,7 @@ async def research_fetcher_node(state: RAGState) -> RAGState:
     log.info("[rag] research_fetcher starting")
     thinking = _ev("research_fetcher", "thinking", "Searching curated clinical guideline corpus...")
 
-    results = await search_chunks_async(
-        state["reformulated_query"], CORPUS_NAMESPACE, top_k=6, doc_type=CORPUS_DOC_TYPE
-    )
+    results = await call_search_clinical_guidelines(state["reformulated_query"], top_k=6)
 
     sources = list({c.get("source_doc", "") for c in results if c.get("source_doc")})
     result = _ev("research_fetcher", "result",
