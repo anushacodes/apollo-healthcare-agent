@@ -4,16 +4,14 @@ import json
 import logging
 from typing import Any
 
-from app.agent import kg_loader
 from app.config import settings
 from app.llm_client import get_groq_client
 
 log = logging.getLogger(__name__)
 
 _SYSTEM_PROMPT = """\
-You are a clinical pharmacologist. Given a patient's medication list, diagnoses,
-and knowledge graph findings, identify drug-drug interactions and drug-condition
-contraindications.
+You are a clinical pharmacologist. Given a patient's medication list and diagnoses,
+identify drug-drug interactions and drug-condition contraindications.
 
 Return ONLY valid JSON:
 {
@@ -38,12 +36,11 @@ Return ONLY valid JSON:
 """
 
 
-def _call_llm(medications: list[str], diagnoses: list[str], kg_results: dict) -> dict[str, Any]:
+def _call_llm(medications: list[str], diagnoses: list[str]) -> dict[str, Any]:
     client = get_groq_client()
     prompt = (
         f"MEDICATIONS: {json.dumps(medications)}\n"
         f"DIAGNOSES: {json.dumps(diagnoses)}\n"
-        f"KG FINDINGS: {json.dumps(kg_results)}\n"
     )
     response = client.chat.completions.create(
         model=settings.groq_model,
@@ -64,24 +61,16 @@ def run_drug_interaction_agent(
     symptoms: list[str],
 ) -> dict[str, Any]:
     """
-    Drug interaction pipeline:
-    1. Query KG (Neo4j → local JSON fallback) for structural drug/condition data
-    2. Run Groq LLM analysis on combined context
+    Drug interaction pipeline: Groq LLM analysis of the patient's medications
+    and diagnoses. Not grounded against a real drug database yet — see
+    docs/TASKS.md Epic 2.2 for the planned RxNorm/OpenFDA-backed grounding.
     """
-    kg_results = kg_loader.query_drug_interactions(
-        drug_names=medications,
-        conditions=diagnoses,
-    )
-
     if settings.has_groq:
-        result = _call_llm(medications, diagnoses, kg_results)
-        result["kg_source"] = kg_results.get("source")
-        return result
+        return _call_llm(medications, diagnoses)
 
     return {
-        "interactions": kg_results.get("interactions", []),
-        "contraindications": kg_results.get("contraindications", []),
+        "interactions": [],
+        "contraindications": [],
         "overall_risk": "unknown",
-        "summary": "LLM analysis unavailable — KG results only.",
-        "kg_source": kg_results.get("source"),
+        "summary": "LLM analysis unavailable.",
     }

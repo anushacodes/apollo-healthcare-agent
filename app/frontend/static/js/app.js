@@ -101,21 +101,13 @@
     if (!el) return;
     try {
       const status = await API.getKgStatus();
-      const neo4jUp = status.neo4j_available;
       el.innerHTML = `
         <div class="kg-status-row">
-          <span class="kg-dot ${neo4jUp ? 'online' : 'offline'}"></span>
-          <span class="kg-label">Neo4j</span>
-          <span class="kg-val">${neo4jUp ? `${status.neo4j_conditions_seeded}/${status.local_conditions}` : 'offline'}</span>
-          ${neo4jUp && status.unseeded > 0 ? `
-            <button class="kg-seed-btn" id="btnSeedKg">Seed ${status.unseeded} more</button>
-          ` : ''}
+          <span class="kg-dot online"></span>
+          <span class="kg-label">Knowledge base</span>
+          <span class="kg-val">${status.local_conditions} conditions</span>
         </div>
       `;
-      document.getElementById('btnSeedKg')?.addEventListener('click', async () => {
-        await API.triggerKgSeed(false);
-        setTimeout(initKgStatus, 1500);
-      });
     } catch {
       el.innerHTML = `<div class="kg-status-row"><span class="kg-dot offline"></span><span class="kg-label">KG unavailable</span></div>`;
     }

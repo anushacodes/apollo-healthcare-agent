@@ -48,7 +48,6 @@ function renderDiagnostics(patient) {
           <span class="diag-pill groq">Groq llama-3.3-70b</span>
           <span class="diag-pill gemini">Gemini 1.5 Flash</span>
           <span class="diag-pill openrouter">OpenRouter (fallback)</span>
-          <span class="diag-pill neo4j">Neo4j KG</span>
         </div>
 
         <button class="btn-run-agent" id="btnRunAgent" ${_diagnosticsRunning ? 'disabled' : ''}>

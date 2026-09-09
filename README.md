@@ -11,7 +11,7 @@ A multi-agent system that reasons over patient records. Load a patient, ask clin
 Two independent pipelines run off the same patient record:
 
 **Diagnostics pipeline** — runs on page load, streams each step live:
-- Drug/KG agent checks medication combinations against a Neo4j knowledge graph
+- Drug/KG agent checks medication combinations against a local clinical knowledge base
 - Diagnosis agent proposes a ranked differential with ICD-10 codes and supporting evidence
 - Clinical calculators run ASCVD 10-year risk and Wells DVT score from structured lab data
 - Summarizer generates a structured clinical brief + plain-English patient summary
@@ -33,7 +33,7 @@ Two independent pipelines run off the same patient record:
 Apollo is specifically designed to handle **complex, chronic care patients**.
 
 - **Primary Clinical Focus:** Rheumatology, systemic autoimmune diseases, and cardiovascular medicine.
-- **Knowledge Graph:** The underlying Neo4j graph maps 25 complex conditions, with deep relationship mapping for diseases like Systemic Lupus Erythematosus (SLE), Lupus Nephritis, and Antiphospholipid Syndrome (APS).
+- **Knowledge Base:** A local JSON knowledge base covers 25 complex conditions, including diseases like Systemic Lupus Erythematosus (SLE), Lupus Nephritis, and Antiphospholipid Syndrome (APS).
 - **Embedded Calculators:** The orchestrator agent triggers specific calculators that target high-risk complications frequently seen in these chronic profiles:
   - **ASCVD Risk:** 10-year cardiovascular risk modeling.
   - **Wells DVT Score:** Deep vein thrombosis probability (crucial for clotting disorders like APS).
@@ -48,7 +48,7 @@ Apollo is specifically designed to handle **complex, chronic care patients**.
 |---|---|
 | Orchestration | LangGraph stateful graph |
 | LLM | Groq `llama-3.3-70b-versatile` (generation), `llama-3.1-8b-instant` (eval) |
-| Knowledge Graph | Neo4j — 25 clinical conditions |
+| Knowledge Base | Local JSON — 25 clinical conditions |
 | Vector Store | Qdrant |
 | Cache | SQLite (answers, summaries, PubMed, chunks) |
 | Document Parsing | Docling, PyMuPDF |
@@ -71,7 +71,7 @@ docker-compose up --build
 
 Open `http://localhost:8000/app.html`
 
-Minimum: `GROQ_API_KEY`. Optional: `GEMINI_API_KEY` (better summaries), `TAVILY_API_KEY` (web search), `NEO4J_PASSWORD` (knowledge graph).
+Minimum: `GROQ_API_KEY`. Optional: `GEMINI_API_KEY` (better summaries), `TAVILY_API_KEY` (web search).
 
 ---
 
@@ -97,7 +97,7 @@ app/
 │   ├── research_agent.py      # PubMed fetch + background prefetch
 │   ├── tools.py               # ASCVD, Wells DVT, CHA₂DS₂-VASc calculators
 │   ├── sqlite_cache.py        # all caching logic
-│   ├── kg_loader.py           # Neo4j + local JSON fallback
+│   ├── kg_loader.py           # local JSON knowledge base lookup
 │   └── seed_patient.py        # demo patient definitions
 ├── ingestion/                 # PDF, image, audio parsing + Qdrant embedding
 ├── routers/                   # FastAPI endpoints (WebSocket, REST)

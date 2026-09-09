@@ -72,12 +72,6 @@ body.app-body { background: var(--bg-page); }
 .kg-dot.offline { background: rgba(255,255,255,0.2); }
 .kg-label { color: var(--sidebar-text-dim); }
 .kg-val   { color: var(--sidebar-text-dim); }
-.kg-seed-btn {
-  color: #7DD3FC;
-  border-color: rgba(56,189,248,0.25);
-  background: rgba(56,189,248,0.08);
-}
-.kg-seed-btn:hover { background: #2563EB; color: #fff; }
 
 /* ── Patient header ───────────────────────────────── */
 .patient-header {
