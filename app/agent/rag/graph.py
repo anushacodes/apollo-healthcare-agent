@@ -16,6 +16,7 @@ from app.agent.rag.nodes import (
     patient_retriever_node,
     query_router_node,
     research_fetcher_node,
+    retrieval_gate_node,
     sufficiency_judge_node,
     web_search_node,
 )
@@ -25,11 +26,35 @@ from app.agent.sqlite_cache import get_answer, set_answer
 log = logging.getLogger(__name__)
 
 
+def _route_from_query_router(state: RAGState) -> list[str]:
+    """Fan out to whichever retrieval branch(es) the router's route decision calls for."""
+    route = state["route"]
+    if route == "patient_docs":
+        return ["patient_retriever"]
+    if route == "research":
+        return ["research_fetcher"]
+    return ["patient_retriever", "research_fetcher"]
+
+
+def _route_after_retrieval(state: RAGState) -> str:
+    """Fall back to web search only when patient docs + corpus results came back sparse."""
+    if state["route"] == "patient_docs":
+        return "context_assembler"
+    combined = len(state["patient_chunks"]) + len(state["research_chunks"])
+    return "context_assembler" if combined >= 3 else "web_search"
+
+
+def _route_after_generation(state: RAGState) -> str:
+    """Refusals skip straight to the end — nothing to evaluate or follow up on."""
+    return END if state.get("is_refusal") else "eval_agent"
+
+
 def _build_rag_graph() -> StateGraph:
     wf = StateGraph(RAGState)
     wf.add_node("query_router",      query_router_node)
     wf.add_node("patient_retriever", patient_retriever_node)
     wf.add_node("research_fetcher",  research_fetcher_node)
+    wf.add_node("retrieval_gate",    retrieval_gate_node)
     wf.add_node("web_search",        web_search_node)
     wf.add_node("context_assembler", context_assembler_node)
     wf.add_node("sufficiency_judge", sufficiency_judge_node)
@@ -38,13 +63,18 @@ def _build_rag_graph() -> StateGraph:
     wf.add_node("follow_up_agent",   follow_up_node)
 
     wf.set_entry_point("query_router")
-    wf.add_edge("query_router",      "patient_retriever")
-    wf.add_edge("patient_retriever", "research_fetcher")
-    wf.add_edge("research_fetcher",  "web_search")
+    wf.add_conditional_edges(
+        "query_router", _route_from_query_router, ["patient_retriever", "research_fetcher"]
+    )
+    wf.add_edge("patient_retriever", "retrieval_gate")
+    wf.add_edge("research_fetcher",  "retrieval_gate")
+    wf.add_conditional_edges(
+        "retrieval_gate", _route_after_retrieval, ["web_search", "context_assembler"]
+    )
     wf.add_edge("web_search",        "context_assembler")
     wf.add_edge("context_assembler", "sufficiency_judge")
     wf.add_edge("sufficiency_judge", "generator")
-    wf.add_edge("generator",         "eval_agent")
+    wf.add_conditional_edges("generator", _route_after_generation, ["eval_agent", END])
     wf.add_edge("eval_agent",        "follow_up_agent")
     wf.add_edge("follow_up_agent",   END)
     return wf.compile()

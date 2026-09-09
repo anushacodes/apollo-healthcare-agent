@@ -309,9 +309,6 @@ def query_router_node(state: RAGState) -> RAGState:
 
 
 async def patient_retriever_node(state: RAGState) -> RAGState:
-    if state["route"] == "research":
-        return state
-
     log.info("[rag] patient_retriever starting")
     thinking = _ev("patient_retriever", "thinking", "Searching uploaded patient documents...")
 
@@ -342,9 +339,6 @@ async def patient_retriever_node(state: RAGState) -> RAGState:
 
 
 async def research_fetcher_node(state: RAGState) -> RAGState:
-    if state["route"] == "patient_docs":
-        return state
-
     log.info("[rag] research_fetcher starting")
     thinking = _ev("research_fetcher", "thinking", "Searching curated clinical guideline corpus...")
 
@@ -365,12 +359,17 @@ async def research_fetcher_node(state: RAGState) -> RAGState:
             "thinking_log": state["thinking_log"] + [thinking, result]}
 
 
-def web_search_node(state: RAGState) -> RAGState:
-    """Falls back to web search if combined chunk count < 3 after corpus + patient docs."""
-    combined = state["patient_chunks"] + state["research_chunks"]
-    if len(combined) >= 3 or state["route"] == "patient_docs":
-        return state
+def retrieval_gate_node(state: RAGState) -> RAGState:
+    """
+    Fan-in point after patient_retriever/research_fetcher. Does no work itself —
+    exists so the graph has a single place to route from once whichever
+    retrieval branches ran have both completed.
+    """
+    return state
 
+
+def web_search_node(state: RAGState) -> RAGState:
+    """Web search fallback — only reached via graph routing when combined chunk count is sparse."""
     log.info("[rag] web_search fallback starting")
     diagnoses = [d.get("name", "") if isinstance(d, dict) else str(d)
                  for d in state["patient_data"].get("summary", {}).get("diagnoses", [])]
@@ -489,17 +488,6 @@ def generator_node(state: RAGState) -> RAGState:
 def eval_node(state: RAGState) -> RAGState:
     log.info("[rag] eval starting")
 
-    if state.get("is_refusal", False):
-        result = _ev("eval_agent", "result", "Skipped — no answer to evaluate",
-                     {"faithfulness": None, "skipped": True})
-        return {**state,
-                "eval_scores":    {"skipped": True},
-                "final_response": state["raw_answer"],
-                "thinking_log":   state["thinking_log"] + [
-                    _ev("eval_agent", "thinking", "Evaluating response..."),
-                    result,
-                ]}
-
     thinking = _ev("eval_agent", "thinking", "Checking every claim for faithfulness to sources...")
 
     scores  = run_eval(question=state["question"], answer=state["raw_answer"], chunks=state["all_chunks"])
@@ -524,9 +512,6 @@ def eval_node(state: RAGState) -> RAGState:
 
 def follow_up_node(state: RAGState) -> RAGState:
     log.info("[rag] follow_up starting")
-    if state.get("is_refusal", False):
-        return {**state, "follow_ups": []}
-
     thinking = _ev("follow_up_agent", "thinking", "Generating dynamic follow-up questions...")
     try:
         res = _groq_json(
