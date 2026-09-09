@@ -25,3 +25,4 @@ class RAGState(BaseModel):
     error:               str | None = None
     thinking_log:        Annotated[list[dict], operator.add] = Field(default_factory=list)
     follow_ups:          list[str] = Field(default_factory=list)
+    prompt_versions:     dict[str, str] = Field(default_factory=dict)

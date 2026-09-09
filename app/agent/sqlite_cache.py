@@ -108,6 +108,18 @@ def init_db() -> None:
                     text,
                     tokenize = 'porter unicode61'
                 );
+
+                CREATE TABLE IF NOT EXISTS prompt_eval_scores (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    prompt_name TEXT NOT NULL,
+                    prompt_version TEXT NOT NULL,
+                    faithfulness REAL,
+                    hallucination_detected INTEGER,
+                    recorded_at REAL DEFAULT (unixepoch())
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_prompt_eval_scores_lookup
+                    ON prompt_eval_scores(prompt_name, prompt_version);
                 """
             )
     except Exception as exc:
@@ -371,4 +383,56 @@ def search_chunk_records(
         return [dict(row) for row in rows]
     except Exception as exc:
         log.warning("[sqlite_cache] FTS search failed: %s", exc)
+        return []
+
+
+def record_prompt_score(
+    prompt_name: str,
+    prompt_version: str,
+    *,
+    faithfulness: float | None,
+    hallucination_detected: bool | None,
+) -> None:
+    """Log one real eval outcome for a specific prompt version, for prompt-version comparison."""
+    try:
+        with _get_conn() as conn:
+            conn.execute(
+                """
+                INSERT INTO prompt_eval_scores
+                    (prompt_name, prompt_version, faithfulness, hallucination_detected, recorded_at)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    prompt_name,
+                    prompt_version,
+                    faithfulness,
+                    None if hallucination_detected is None else int(hallucination_detected),
+                    time.time(),
+                ),
+            )
+    except Exception as exc:
+        log.error("[sqlite_cache] record_prompt_score error: %s", exc)
+
+
+def get_prompt_version_stats(prompt_name: str) -> list[dict[str, Any]]:
+    """Per-version aggregate stats for a prompt — avg faithfulness, hallucination rate, sample count."""
+    try:
+        with _get_conn() as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    prompt_version,
+                    COUNT(*) AS n,
+                    AVG(faithfulness) AS avg_faithfulness,
+                    AVG(hallucination_detected) AS hallucination_rate
+                FROM prompt_eval_scores
+                WHERE prompt_name = ?
+                GROUP BY prompt_version
+                ORDER BY prompt_version
+                """,
+                (prompt_name,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+    except Exception as exc:
+        log.error("[sqlite_cache] get_prompt_version_stats error: %s", exc)
         return []

@@ -8,7 +8,8 @@ from pydantic import BaseModel
 
 from app.agent.contracts import FollowUpQuestions, RouterDecision
 from app.agent.eval_agent import run_eval
-from app.agent.rag.prompts import _FOLLOW_UP_PROMPT, _GENERATOR_PROMPT, _ROUTER_PROMPT
+from app.agent.prompt_registry import get_active_prompt, record_eval
+from app.agent.rag.prompts import _FOLLOW_UP_PROMPT, _ROUTER_PROMPT
 from app.agent.rag.state import RAGState
 from app.agent.sqlite_cache import (
     hash_payload,
@@ -441,11 +442,12 @@ def generator_node(state: RAGState) -> dict:
         }
 
     thinking = _ev("generator", "thinking", f"Generating grounded response from {len(chunks)} chunks...")
+    prompt_version, prompt_template = get_active_prompt("generator")
 
     answer = ""
     try:
         answer = _groq_text(
-            system=_GENERATOR_PROMPT.format(
+            system=prompt_template.format(
                 chunks=_format_chunks(chunks),
                 question=state.question,
             ),
@@ -478,6 +480,7 @@ def generator_node(state: RAGState) -> dict:
         "is_refusal": False,
         "citations":  citations,
         "thinking_log": [thinking, result],
+        "prompt_versions": {"generator": prompt_version},
     }
 
 
@@ -489,6 +492,10 @@ def eval_node(state: RAGState) -> dict:
     scores  = run_eval(question=state.question, answer=state.raw_answer, chunks=state.all_chunks)
     faith   = scores.get("faithfulness", 1.0)
     hallu   = scores.get("hallucination_detected", False)
+
+    generator_version = state.prompt_versions.get("generator")
+    if generator_version:
+        record_eval("generator", generator_version, faithfulness=faith, hallucination_detected=hallu)
 
     final = state.raw_answer
     if faith < 0.70 or hallu:
