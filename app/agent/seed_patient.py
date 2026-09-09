@@ -17,20 +17,20 @@ def load_case_a() -> dict[str, Any]:
     Case A — James Hartwell (SLE + Lupus Nephritis)
     Pre-loaded from seed data files. No PII upload required.
     """
-    dummy_path = _SEED_DIR / "dummy_patient.json"
-    if dummy_path.exists():
-        base = json.loads(dummy_path.read_text(encoding="utf-8"))
+    patient_path = _SEED_DIR / "case_a_patient.json"
+    if patient_path.exists():
+        base = json.loads(patient_path.read_text(encoding="utf-8"))
     else:
         base = {}
 
     # Attach the raw clinical text documents for ingestion/display
     base["source_documents"] = {
-        "clinical_report": _read("james_hartwell_clinical_report.txt"),
-        "handwritten_note_1": _read("james_hartwell_handwritten_note_1.txt"),
-        "handwritten_note_2": _read("james_hartwell_handwritten_note_2.txt"),
-        "labs": _read("james_hartwell_labs.txt"),
-        "transcript": _read("james_hartwell_transcript.txt"),
-        "xray_report": _read("james_hartwell_xray_report.txt"),
+        "clinical_report": _read("case_a_clinical_report.txt"),
+        "handwritten_note_1": _read("case_a_handwritten_note_1.txt"),
+        "handwritten_note_2": _read("case_a_handwritten_note_2.txt"),
+        "labs": _read("case_a_labs.txt"),
+        "transcript": _read("case_a_transcript.txt"),
+        "xray_report": _read("case_a_xray_report.txt"),
     }
     base["case_label"] = "Case A — James Hartwell (SLE / Lupus Nephritis)"
     return base

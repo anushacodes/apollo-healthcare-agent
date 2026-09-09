@@ -164,12 +164,12 @@ window.DEMO_PATIENT = {
   },
 
   source_documents: [
-    { name: "james_hartwell_handwritten_note_1.txt", type: "handwritten_note",  label: "GP Handwritten Note — 09 Oct 2023",         icon: "📝", description: "OCR-extracted GP note. Malar rash, joint pain, dipstick protein+++." },
-    { name: "james_hartwell_handwritten_note_2.txt", type: "handwritten_note",  label: "Ward Progress Note — 12 Oct 2023",          icon: "📝", description: "Ward SpR note. Inpatient course, IV methylprednisolone, investigations." },
-    { name: "james_hartwell_clinical_report.txt",    type: "clinical_letter",   label: "Rheumatology Clinic Letter — 22 Nov 2023",  icon: "📄", description: "Prof Okafor's clinic letter — full history, management plan." },
-    { name: "james_hartwell_labs.txt",               type: "lab_report",        label: "Blood Panel + Immunology — 20 Nov 2023",    icon: "🧪", description: "Haematology, biochemistry, immunology, urine — 4 Markdown tables." },
-    { name: "james_hartwell_xray_report.txt",        type: "radiology_report",  label: "CXR + Echocardiogram — 13 Oct 2023",        icon: "🫀", description: "Left pleural effusion, pericardial effusion 12mm, EF 63%." },
-    { name: "james_hartwell_transcript.txt",         type: "audio_transcript",  label: "Consultation Transcript — 22 Nov 2023",     icon: "🎙️", description: "14m32s Whisper transcript — Prof Okafor & Mr Hartwell." },
+    { name: "case_a_handwritten_note_1.txt", type: "handwritten_note",  label: "GP Handwritten Note — 09 Oct 2023",         icon: "📝", description: "OCR-extracted GP note. Malar rash, joint pain, dipstick protein+++." },
+    { name: "case_a_handwritten_note_2.txt", type: "handwritten_note",  label: "Ward Progress Note — 12 Oct 2023",          icon: "📝", description: "Ward SpR note. Inpatient course, IV methylprednisolone, investigations." },
+    { name: "case_a_clinical_report.txt",    type: "clinical_letter",   label: "Rheumatology Clinic Letter — 22 Nov 2023",  icon: "📄", description: "Prof Okafor's clinic letter — full history, management plan." },
+    { name: "case_a_labs.txt",               type: "lab_report",        label: "Blood Panel + Immunology — 20 Nov 2023",    icon: "🧪", description: "Haematology, biochemistry, immunology, urine — 4 Markdown tables." },
+    { name: "case_a_xray_report.txt",        type: "radiology_report",  label: "CXR + Echocardiogram — 13 Oct 2023",        icon: "🫀", description: "Left pleural effusion, pericardial effusion 12mm, EF 63%." },
+    { name: "case_a_transcript.txt",         type: "audio_transcript",  label: "Consultation Transcript — 22 Nov 2023",     icon: "🎙️", description: "14m32s Whisper transcript — Prof Okafor & Mr Hartwell." },
   ],
 
   demo_questions: [

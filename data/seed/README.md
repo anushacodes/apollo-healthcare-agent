@@ -25,15 +25,17 @@ James's case involves:
 
 ## Synthetic Files in This Directory
 
+All files belong to Case A (see `app/agent/seed_patient.py::CASES`).
+
 | Filename | Type | Simulates |
 |---|---|---|
-| `james_hartwell_handwritten_note_1.txt` | Messy OCR output | GP handwritten visit note (OCR artifacts) |
-| `james_hartwell_handwritten_note_2.txt` | Messy OCR output | Hospital ward handwritten progress note |
-| `james_hartwell_clinical_report.txt` | Clean Docling text extract | Rheumatology typed clinic letter |
-| `james_hartwell_labs.txt` | Docling table extraction | Full blood panel + immunology + urine |
-| `james_hartwell_xray_report.txt` | Docling text extract | Chest X-ray + Echo report |
-| `james_hartwell_transcript.txt` | Whisper transcript | Doctor–patient consultation audio |
-| `dummy_patient.json` | Pre-processed JSON | Full PatientSummary for frontend demo mode |
+| `case_a_handwritten_note_1.txt` | Messy OCR output | GP handwritten visit note (OCR artifacts) |
+| `case_a_handwritten_note_2.txt` | Messy OCR output | Hospital ward handwritten progress note |
+| `case_a_clinical_report.txt` | Clean Docling text extract | Rheumatology typed clinic letter |
+| `case_a_labs.txt` | Docling table extraction | Full blood panel + immunology + urine |
+| `case_a_xray_report.txt` | Docling text extract | Chest X-ray + Echo report |
+| `case_a_transcript.txt` | Whisper transcript | Doctor–patient consultation audio |
+| `case_a_patient.json` | Pre-processed JSON | Full PatientSummary for frontend demo mode |
 
 ## Note on File Format
 These `.txt` files simulate what **Docling** and **LightOnOCR-2-1B** return
