@@ -73,6 +73,6 @@ app.include_router(agent_router.router)
 app.include_router(kg_router.router)
 app.include_router(rag_router.router)
 
-app.mount("/", StaticFiles(directory="app/frontend", html=True), name="frontend")
+app.mount("/", StaticFiles(directory="app/frontend_dist", html=True), name="frontend")
 
 log.info("Apollo API started")

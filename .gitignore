@@ -215,3 +215,7 @@ apollo_architecture_details.md
 # Internal working docs — not part of the public repo
 CLAUDE.md
 docs/
+
+# React frontend (app/frontend-src) — build artifacts, not source
+app/frontend-src/node_modules/
+app/frontend_dist/
