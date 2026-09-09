@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import logging
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
+from app.mcp.server import mcp
 from app.middleware import RequestContextMiddleware
 from app.routers import agent as agent_router
 from app.routers import kg as kg_router
@@ -18,9 +19,20 @@ logging.basicConfig(level=settings.log_level)
 log = logging.getLogger(__name__)
 
 
+mcp_app = mcp.http_app(path="/")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
+    async with AsyncExitStack() as stack:
+        await stack.enter_async_context(mcp_app.lifespan(app))
+        await _startup(app)
+        yield
+    # Shutdown (nothing to clean up yet)
+
+
+async def _startup(app: FastAPI) -> None:
     try:
         from app.agent.kg_loader import kg_status
         status = kg_status()
@@ -48,9 +60,6 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         log.warning("[startup] Curated corpus indexing failed (non-fatal): %s", exc)
 
-    yield
-    # Shutdown (nothing to clean up yet)
-
 
 app = FastAPI(
     title="Apollo — Clinical Intelligence Platform",
@@ -73,6 +82,7 @@ app.include_router(agent_router.router)
 app.include_router(kg_router.router)
 app.include_router(rag_router.router)
 
+app.mount("/mcp", mcp_app)
 app.mount("/", StaticFiles(directory="app/frontend_dist", html=True), name="frontend")
 
 log.info("Apollo API started")
