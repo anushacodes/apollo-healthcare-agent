@@ -17,7 +17,6 @@ After this runs, the app will:
   - Skip the entire RAG pipeline for known questions (SQLite rag_answer_cache hit)
   - Load the sentence-transformers model once at app startup (not per-request)
 """
-from __future__ import annotations
 
 import asyncio
 import gc

@@ -11,7 +11,6 @@ currently that's just the RAG generator prompt, since it's the only one
 interaction) have no equivalent automated quality signal yet.
 """
 
-from __future__ import annotations
 
 from app.agent.rag.prompts import _GENERATOR_PROMPT
 from app.agent.sqlite_cache import get_prompt_version_stats, record_prompt_score

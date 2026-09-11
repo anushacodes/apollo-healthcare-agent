@@ -3,7 +3,6 @@ tests/test_pipeline.py
 Run with:  python -m pytest tests/ -v
        or:  python tests/test_pipeline.py
 """
-from __future__ import annotations
 
 import asyncio
 

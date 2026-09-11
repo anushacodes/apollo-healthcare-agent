@@ -1,10 +1,9 @@
-from __future__ import annotations
-
 import logging
 from contextlib import AsyncExitStack, asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
@@ -81,7 +80,6 @@ app.include_router(summarize.router)
 app.include_router(agent_router.router)
 app.include_router(kg_router.router)
 app.include_router(rag_router.router)
-from fastapi.responses import RedirectResponse
 
 
 @app.get("/app.html")
