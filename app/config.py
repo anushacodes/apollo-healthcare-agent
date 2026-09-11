@@ -12,17 +12,17 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # LLM API keys
+    # LLM API keys & provider selection
+    llm_provider: str = Field(default="groq", alias="LLM_PROVIDER")
     groq_api_key: str | None = Field(default=None, alias="GROQ_API_KEY")
     gemini_api_key: str | None = Field(default=None, alias="GEMINI_API_KEY")
     openrouter_api_key: str | None = Field(default=None, alias="OPENROUTER_API_KEY")
     tavily_api_key: str | None = Field(default=None, alias="TAVILY_API_KEY")
 
-
     groq_model: str = Field(default="openai/gpt-oss-120b", alias="GROQ_MODEL")
     groq_eval_model: str = Field(default="openai/gpt-oss-20b", alias="GROQ_EVAL_MODEL")
     gemini_model: str = Field(default="gemini-2.0-flash", alias="GEMINI_MODEL")
-    openrouter_model: str = Field(default="meta-llama/llama-3-8b-instruct:free", alias="OPENROUTER_MODEL")
+    openrouter_model: str = Field(default="meta-llama/llama-3.3-70b-instruct", alias="OPENROUTER_MODEL")
 
 
     qdrant_url: str = Field(default="http://localhost:6333", alias="QDRANT_URL")
@@ -87,5 +87,21 @@ class Settings(BaseSettings):
     @property
     def has_tavily(self) -> bool:
         return bool(self.tavily_api_key)
+
+    @computed_field
+    @property
+    def active_llm_provider(self) -> str:
+        preferred = (self.llm_provider or "").lower().strip()
+        if preferred == "openrouter" and self.has_openrouter:
+            return "openrouter"
+        if preferred == "groq" and self.has_groq:
+            return "groq"
+        if self.has_groq:
+            return "groq"
+        if self.has_openrouter:
+            return "openrouter"
+        if self.has_gemini:
+            return "gemini"
+        return "none"
 
 settings = Settings()

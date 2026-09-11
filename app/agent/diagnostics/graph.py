@@ -27,14 +27,16 @@ def _build_graph() -> StateGraph:
 
     workflow.set_entry_point("orchestrator")
 
-    # Fan-out after orchestrator: drug_graph and tool_node run in parallel.
-    # drug_graph must finish before diagnosis (needs kg_matches).
-    # summarizer fans in from both diagnosis and tool_node.
-    workflow.add_edge("orchestrator", "drug_graph")
+    # Pipeline sequence:
+    # 1. orchestrator plans calculators & KG symptoms
+    # 2. tool_node executes calculators immediately (<5ms)
+    # 3. drug_graph queries KG & evaluates drug interactions
+    # 4. diagnosis synthesizes notes, KG matches, and calculator findings
+    # 5. summarizer synthesizes all node outputs into the final clinical summary
     workflow.add_edge("orchestrator", "tool_node")
+    workflow.add_edge("tool_node",    "drug_graph")
     workflow.add_edge("drug_graph",   "diagnosis")
     workflow.add_edge("diagnosis",    "summarizer")
-    workflow.add_edge("tool_node",    "summarizer")
     workflow.add_edge("summarizer",   END)
 
     return workflow.compile()

@@ -6,7 +6,8 @@ untyped dicts via `.get(...)` with silent fallbacks.
 """
 
 
-from pydantic import BaseModel, Field
+from typing import Any
+from pydantic import BaseModel, Field, model_validator
 
 
 class CalculatorCall(BaseModel):
@@ -21,11 +22,32 @@ class OrchestratorPlan(BaseModel):
 
 
 class ProposedDiagnosis(BaseModel):
-    name: str
+    name: str = Field(default="unknown")
     icd_code: str | None = None
     confidence: str = "moderate"
     supporting_evidence: list[str] = Field(default_factory=list)
     reasoning: str = ""
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_fields(cls, data: Any):
+        if not isinstance(data, dict):
+            return data
+        d = dict(data)
+        if "diagnosis" in d and not d.get("name"):
+            d["name"] = d["diagnosis"]
+        if "condition" in d and not d.get("name"):
+            d["name"] = d["condition"]
+        if "icd10_code" in d and not d.get("icd_code"):
+            d["icd_code"] = d["icd10_code"]
+        if "icd_10" in d and not d.get("icd_code"):
+            d["icd_code"] = d["icd_10"]
+        ev = d.get("supporting_evidence")
+        if isinstance(ev, str):
+            d["supporting_evidence"] = [s.strip() for s in ev.split(",") if s.strip()]
+        elif not isinstance(ev, list):
+            d["supporting_evidence"] = [str(ev)] if ev else []
+        return d
 
 
 class DiagnosisResult(BaseModel):

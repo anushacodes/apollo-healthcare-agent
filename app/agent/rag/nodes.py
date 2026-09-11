@@ -18,7 +18,12 @@ from app.agent.sqlite_cache import (
 from app.config import settings
 from app.ingestion.chunker import chunk_text
 from app.ingestion.embedder import embed_chunks_async, search_chunks_async
-from app.llm_client import get_groq_client, get_structured_groq_client
+from app.llm_client import (
+    call_llm_json,
+    call_llm_text,
+    get_groq_client,
+    get_structured_groq_client,
+)
 from app.mcp.client import call_search_clinical_guidelines
 
 log = logging.getLogger(__name__)
@@ -29,33 +34,48 @@ _T = TypeVar("_T", bound=BaseModel)
 # ── LLM helpers ──────────────────────────────────────────────────────────────
 
 def _groq_structured(response_model: type[_T], user: str, system: str = "") -> _T:
-    client = get_structured_groq_client()
     messages = []
     if system:
         messages.append({"role": "system", "content": system})
     messages.append({"role": "user", "content": user})
-    return client.chat.completions.create(
-        model=settings.groq_model,
-        response_model=response_model,
-        messages=messages,
-        temperature=0.1,
-        max_tokens=2048,
-        reasoning_effort="low",
-    )
+
+    if settings.active_llm_provider == "openrouter" and settings.has_openrouter:
+        try:
+            raw_dict, _ = call_llm_json(messages, temperature=0.1, max_tokens=2048)
+            return response_model.model_validate(raw_dict)
+        except Exception as exc:
+            log.warning("[rag] OpenRouter structured call failed, trying fallback: %s", exc)
+
+    if settings.has_groq:
+        try:
+            client = get_structured_groq_client()
+            return client.chat.completions.create(
+                model=settings.groq_model,
+                response_model=response_model,
+                messages=messages,
+                temperature=0.1,
+                max_tokens=2048,
+                reasoning_effort="low",
+            )
+        except Exception as exc:
+            log.warning("[rag] Groq structured tool call failed, trying JSON fallback: %s", exc)
+            raw_dict, _ = call_llm_json(messages, temperature=0.1, max_tokens=2048)
+            return response_model.model_validate(raw_dict)
+
+    if settings.has_openrouter:
+        raw_dict, _ = call_llm_json(messages, temperature=0.1, max_tokens=2048)
+        return response_model.model_validate(raw_dict)
+
+    raise RuntimeError("No LLM provider available for structured completion")
 
 
 def _groq_text(system: str, user: str, max_tokens: int = 2048) -> str:
-    resp = get_groq_client().chat.completions.create(
-        model=settings.groq_model,
-        messages=[
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ],
-        temperature=0.2,
-        max_tokens=max_tokens,
-        reasoning_effort="low",
-    )
-    return resp.choices[0].message.content.strip()
+    messages = []
+    if system:
+        messages.append({"role": "system", "content": system})
+    messages.append({"role": "user", "content": user})
+    text, _ = call_llm_text(messages, temperature=0.2, max_tokens=max_tokens)
+    return text
 
 
 # ── Formatting helpers ────────────────────────────────────────────────────────
@@ -403,7 +423,7 @@ def context_assembler_node(state: RAGState) -> dict:
             merged.append(chunk)
 
     merged.sort(key=lambda c: c.get("score", 0), reverse=True)
-    return {"all_chunks": merged[:14]}
+    return {"all_chunks": merged[:8]}
 
 
 def sufficiency_judge_node(state: RAGState) -> dict:

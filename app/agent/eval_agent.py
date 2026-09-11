@@ -3,7 +3,7 @@ from typing import Any
 
 from app.agent.contracts import EvalScores
 from app.config import settings
-from app.llm_client import get_structured_groq_client
+from app.llm_client import call_llm_json, get_structured_groq_client
 
 log = logging.getLogger(__name__)
 
@@ -61,6 +61,11 @@ def run_eval(
     Score an answer for faithfulness to retrieved chunks.
     Returns eval scores dict. Never blocks output — only annotates low scores.
     """
+    if not answer or answer.strip().startswith("Generation error:") or answer.strip().startswith("No relevant sources"):
+        return EvalScores(
+            evaluation_notes=answer or "No answer provided.",
+        ).model_dump()
+
     if not chunks:
         return EvalScores(
             faithfulness=0.0,
@@ -78,25 +83,38 @@ def run_eval(
         question=question,
         answer=answer[:2000],
     )
+    messages = [
+        {"role": "system", "content": _EVAL_SYSTEM},
+        {"role": "user", "content": prompt},
+    ]
 
-    try:
-        client = get_structured_groq_client()
-        result: EvalScores = client.chat.completions.create(
-            model=settings.groq_eval_model,
-            response_model=EvalScores,
-            messages=[
-                {"role": "system", "content": _EVAL_SYSTEM},
-                {"role": "user", "content": prompt},
-            ],
-            temperature=0.0,
-            max_tokens=2048,
-            reasoning_effort="low",
-        )
-    except Exception as exc:
-        log.error("[eval] Scoring failed: %s", exc)
-        return EvalScores(
-            evaluation_notes=f"Eval agent unavailable: {exc}",
-        ).model_dump()
+    result = None
+    if settings.has_groq:
+        try:
+            client = get_structured_groq_client()
+            result = client.chat.completions.create(
+                model=settings.groq_eval_model,
+                response_model=EvalScores,
+                messages=messages,
+                temperature=0.0,
+                max_tokens=2048,
+                reasoning_effort="low",
+            )
+        except Exception as exc:
+            log.warning("[eval] Groq tool evaluation failed, trying JSON mode: %s", exc)
+
+    if result is None and (settings.has_groq or settings.has_openrouter):
+        try:
+            raw_dict, _ = call_llm_json(messages, temperature=0.0, max_tokens=2048)
+            result = EvalScores.model_validate(raw_dict)
+        except Exception as exc:
+            log.error("[eval] Scoring failed: %s", exc)
+            return EvalScores(
+                evaluation_notes=f"Eval agent unavailable: {exc}",
+            ).model_dump()
+
+    if result is None:
+        return EvalScores(evaluation_notes="Eval agent unavailable.").model_dump()
 
     log.info(
         "[eval] faith=%.2f relevance=%.2f completeness=%.2f hallucination=%s",

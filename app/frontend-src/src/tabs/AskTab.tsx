@@ -38,12 +38,16 @@ export function AskTab({ patient }: { patient: PatientData }) {
     if (!question.trim() || busy) return
     setBusy(true)
     setInput('')
-    setMessages((prev) => [...prev, { role: 'user', text: question, trace: [] }, { role: 'agent', trace: [], busy: true }])
-
-    const agentIndex = messages.length + 1
+    setMessages((prev) => [
+      ...prev,
+      { role: 'user', text: question, trace: [] },
+      { role: 'agent', trace: [], busy: true },
+    ])
 
     function update(fn: (m: Message) => Message) {
-      setMessages((prev) => prev.map((m, i) => (i === agentIndex ? fn(m) : m)))
+      setMessages((prev) =>
+        prev.map((m, i) => (i === prev.length - 1 ? fn(m) : m)),
+      )
     }
 
     api.streamAsk(
@@ -52,9 +56,15 @@ export function AskTab({ patient }: { patient: PatientData }) {
       patient._caseKey || null,
       (evt: AskEvent) => {
         if (evt.type === 'thinking') {
-          update((m) => ({ ...m, trace: [...m.trace, { node: evt.node || '', message: evt.message || '', type: 'thinking' }] }))
+          update((m) => ({
+            ...m,
+            trace: [...m.trace, { node: evt.node || '', message: evt.message || '', type: 'thinking' }],
+          }))
         } else if (evt.type === 'result') {
-          update((m) => ({ ...m, trace: [...m.trace, { node: evt.node || '', message: evt.message || '', type: 'result' }] }))
+          update((m) => ({
+            ...m,
+            trace: [...m.trace, { node: evt.node || '', message: evt.message || '', type: 'result' }],
+          }))
         } else if (evt.type === 'done') {
           const data = evt.data || {}
           update((m) => ({
@@ -68,10 +78,18 @@ export function AskTab({ patient }: { patient: PatientData }) {
           const data = evt.data || {}
           update((m) => ({ ...m, evalScores: data.eval_scores as EvalScores }))
         } else if (evt.type === 'error') {
-          update((m) => ({ ...m, busy: false, answer: '', trace: [...m.trace, { node: 'error', message: evt.message || 'Something went wrong.', type: 'error' }] }))
+          update((m) => ({
+            ...m,
+            busy: false,
+            answer: '',
+            trace: [...m.trace, { node: 'error', message: evt.message || 'Something went wrong.', type: 'error' }],
+          }))
         }
       },
-      () => setBusy(false),
+      () => {
+        setBusy(false)
+        update((m) => (m.busy ? { ...m, busy: false } : m))
+      },
     )
   }
 
@@ -142,9 +160,33 @@ export function AskTab({ patient }: { patient: PatientData }) {
 
 function AgentMessage({ message, technical }: { message: Message; technical: boolean }) {
   if (message.busy) {
+    const lastTrace = message.trace[message.trace.length - 1]
     return (
-      <div className="max-w-lg border border-rule px-4 py-2 text-sm text-ink/50">
-        <span className="inline-block animate-pulse">Thinking…</span>
+      <div className="max-w-lg space-y-2">
+        <div className="flex items-center gap-2 border border-rule bg-sheet px-4 py-3 text-sm text-ink/70">
+          <span className="inline-block h-2 w-2 animate-ping rounded-full bg-accent" />
+          <span className="text-xs text-ink/70">
+            {lastTrace ? (ASK_STEP_LABELS[lastTrace.node] || lastTrace.message) : 'Analyzing records…'}
+          </span>
+        </div>
+        {technical && message.trace.length > 0 && (
+          <div className="space-y-1 border-l-2 border-accent bg-sheet p-3 text-xs font-mono text-ink/60">
+            {message.trace.map((t, i) => (
+              <div key={i}>
+                [{ASK_TECHNICAL_LABELS[t.node] || t.node}] {t.message}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  if (!message.answer && message.trace.some((t) => t.type === 'error')) {
+    const err = message.trace.find((t) => t.type === 'error')
+    return (
+      <div className="max-w-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
+        ⚠️ {err?.message || 'Unable to complete request. Please verify server connection.'}
       </div>
     )
   }
@@ -163,7 +205,9 @@ function AgentMessage({ message, technical }: { message: Message; technical: boo
 
   return (
     <div className="max-w-lg space-y-2">
-      <div className="border border-rule bg-sheet px-4 py-3 text-sm text-ink/90">{message.answer}</div>
+      <div className="whitespace-pre-wrap border border-rule bg-sheet px-4 py-3 text-sm text-ink/90">
+        {message.answer}
+      </div>
 
       {message.citations && message.citations.length > 0 && (
         <div className="flex flex-wrap divide-x divide-rule text-xs text-ink/50">

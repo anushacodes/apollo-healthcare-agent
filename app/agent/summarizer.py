@@ -9,7 +9,7 @@ from google.genai import types as genai_types
 
 from app.agent.sqlite_cache import get_summary, hash_payload, set_summary
 from app.config import settings
-from app.llm_client import get_groq_client
+from app.llm_client import get_groq_client, get_openrouter_client
 from app.models import ClinicalSummary
 
 log = logging.getLogger(__name__)
@@ -118,6 +118,22 @@ def _call_groq(context: str) -> dict[str, Any]:
     )
     return json.loads(response.choices[0].message.content)
 
+
+def _call_openrouter(context: str) -> dict[str, Any]:
+    client = get_openrouter_client()
+    response = client.chat.completions.create(
+        model=settings.openrouter_model,
+        messages=[
+            {"role": "system", "content": _SYSTEM_PROMPT},
+            {"role": "user",   "content": _USER_TEMPLATE.format(context=context)},
+        ],
+        temperature=0.1,
+        max_tokens=2048,
+        response_format={"type": "json_object"},
+    )
+    return json.loads(response.choices[0].message.content or "{}")
+
+
 def _call_gemini(context: str) -> dict[str, Any]:
     client = genai.Client(api_key=settings.gemini_api_key)
     response = client.models.generate_content(
@@ -217,25 +233,42 @@ def run_summarizer(
         set_summary(patient_id, cache_key, summary.model_dump(mode="json"))
         return summary
 
-    if settings.has_groq:
-        try:
-            log.info(f"[summarizer] Trying Groq ({settings.groq_model}) for {patient_id}")
-            raw = _call_groq(context)
-            summary = _validate(raw, patient_id, f"groq/{settings.groq_model}", t0)
-            set_summary(patient_id, cache_key, summary.model_dump(mode="json"))
-            return summary
-        except Exception as exc:
-            log.warning(f"[summarizer] Groq failed: {exc} — falling back to Gemini")
+    providers = []
+    if settings.active_llm_provider == "openrouter":
+        providers = ["openrouter", "groq", "gemini"]
+    else:
+        providers = ["groq", "openrouter", "gemini"]
 
-    if settings.has_gemini:
-        try:
-            log.info(f"[summarizer] Trying Gemini ({settings.gemini_model}) for {patient_id}")
-            raw = _call_gemini(context)
-            summary = _validate(raw, patient_id, f"gemini/{settings.gemini_model}", t0)
-            set_summary(patient_id, cache_key, summary.model_dump(mode="json"))
-            return summary
-        except Exception as exc:
-            log.warning(f"[summarizer] Gemini failed: {exc}")
+    for prov in providers:
+        if prov == "groq" and settings.has_groq:
+            try:
+                log.info(f"[summarizer] Trying Groq ({settings.groq_model}) for {patient_id}")
+                raw = _call_groq(context)
+                summary = _validate(raw, patient_id, f"groq/{settings.groq_model}", t0)
+                set_summary(patient_id, cache_key, summary.model_dump(mode="json"))
+                return summary
+            except Exception as exc:
+                log.warning(f"[summarizer] Groq failed: {exc}")
+
+        elif prov == "openrouter" and settings.has_openrouter:
+            try:
+                log.info(f"[summarizer] Trying OpenRouter ({settings.openrouter_model}) for {patient_id}")
+                raw = _call_openrouter(context)
+                summary = _validate(raw, patient_id, f"openrouter/{settings.openrouter_model}", t0)
+                set_summary(patient_id, cache_key, summary.model_dump(mode="json"))
+                return summary
+            except Exception as exc:
+                log.warning(f"[summarizer] OpenRouter failed: {exc}")
+
+        elif prov == "gemini" and settings.has_gemini:
+            try:
+                log.info(f"[summarizer] Trying Gemini ({settings.gemini_model}) for {patient_id}")
+                raw = _call_gemini(context)
+                summary = _validate(raw, patient_id, f"gemini/{settings.gemini_model}", t0)
+                set_summary(patient_id, cache_key, summary.model_dump(mode="json"))
+                return summary
+            except Exception as exc:
+                log.warning(f"[summarizer] Gemini failed: {exc}")
 
     summary = _fallback_summary(patient_data, patient_id, "heuristic/fallback")
     set_summary(patient_id, cache_key, summary.model_dump(mode="json"))

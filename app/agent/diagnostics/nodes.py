@@ -14,7 +14,7 @@ from app.agent.sqlite_cache import get_node_cache, hash_payload, set_node_cache
 from app.agent.summarizer import build_context, run_summarizer
 from app.agent.tools import TOOL_MAP
 from app.config import settings
-from app.llm_client import get_structured_groq_client
+from app.llm_client import call_llm_json, get_structured_groq_client
 
 log = logging.getLogger(__name__)
 
@@ -22,34 +22,46 @@ log = logging.getLogger(__name__)
 # ── LLM helpers ──────────────────────────────────────────────────────────────
 
 def _call_orchestrator_llm(context: str) -> OrchestratorPlan:
-    client = get_structured_groq_client()
-    return client.chat.completions.create(
-        model=settings.groq_model,
-        response_model=OrchestratorPlan,
-        messages=[{"role": "system", "content": _ORCHESTRATOR_PROMPT}, {"role": "user", "content": context}],
-        temperature=0.1,
-        max_tokens=4096,
-        reasoning_effort="low",
-    )
+    messages = [{"role": "system", "content": _ORCHESTRATOR_PROMPT}, {"role": "user", "content": context}]
+
+    if settings.active_llm_provider == "openrouter" and settings.has_openrouter:
+        try:
+            raw_dict, _ = call_llm_json(messages, temperature=0.1, max_tokens=4096)
+            return OrchestratorPlan.model_validate(raw_dict)
+        except Exception as exc:
+            log.warning("[orchestrator] OpenRouter call failed: %s", exc)
+
+    if settings.has_groq:
+        try:
+            client = get_structured_groq_client()
+            return client.chat.completions.create(
+                model=settings.groq_model,
+                response_model=OrchestratorPlan,
+                messages=messages,
+                temperature=0.1,
+                max_tokens=4096,
+                reasoning_effort="low",
+            )
+        except Exception as exc:
+            log.warning("[orchestrator] Groq tool call failed, trying JSON: %s", exc)
+            raw_dict, _ = call_llm_json(messages, temperature=0.1, max_tokens=4096)
+            return OrchestratorPlan.model_validate(raw_dict)
+
+    if settings.has_openrouter:
+        raw_dict, _ = call_llm_json(messages, temperature=0.1, max_tokens=4096)
+        return OrchestratorPlan.model_validate(raw_dict)
+
+    raise RuntimeError("No LLM provider available for orchestrator")
 
 
 def _call_openrouter_json(system: str, user: str) -> dict:
-    """OpenRouter (free tier) — fallback for orchestrator only."""
-    response = httpx.post(
-        "https://openrouter.ai/api/v1/chat/completions",
-        headers={
-            "Authorization": f"Bearer {settings.openrouter_api_key}",
-            "Content-Type": "application/json",
-        },
-        json={
-            "model": settings.openrouter_model,
-            "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
-            "response_format": {"type": "json_object"},
-        },
-        timeout=30,
+    """OpenRouter fallback for orchestrator."""
+    raw_dict, _ = call_llm_json(
+        [{"role": "system", "content": system}, {"role": "user", "content": user}],
+        temperature=0.1,
+        max_tokens=4096,
     )
-    response.raise_for_status()
-    return json.loads(response.json()["choices"][0]["message"]["content"])
+    return raw_dict
 
 
 # ── Structured extraction ─────────────────────────────────────────────────────
