@@ -81,6 +81,14 @@ app.include_router(summarize.router)
 app.include_router(agent_router.router)
 app.include_router(kg_router.router)
 app.include_router(rag_router.router)
+from fastapi.responses import RedirectResponse
+
+
+@app.get("/app.html")
+@app.get("/index.html")
+async def legacy_frontend_redirect():
+    return RedirectResponse(url="/", status_code=307)
+
 
 app.mount("/mcp", mcp_app)
 app.mount("/", StaticFiles(directory="app/frontend_dist", html=True), name="frontend")

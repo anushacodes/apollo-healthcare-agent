@@ -107,6 +107,7 @@ sparse-only retrieval if it's unreachable, so a bare Python + Groq key is
 enough to boot and use the diagnostics pipeline.
 
 Open `http://localhost:8000/app.html`
+Open `http://localhost:8000/`
 
 Minimum: `GROQ_API_KEY`. Optional: `GEMINI_API_KEY` (better summaries),
 `TAVILY_API_KEY` (web search fallback).
