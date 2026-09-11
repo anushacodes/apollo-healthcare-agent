@@ -291,7 +291,7 @@ def tool_node(state: AgentState) -> dict:
             results.append({"tool": tool_name, "error": "Tool not found"})
             continue
         try:
-            results.append({"tool": tool_name, "result": tool_fn.invoke(call.get("params", {}))})
+            results.append({"tool": tool_name, "result": tool_fn(**call.get("params", {}))})
         except Exception as exc:
             err_str = str(exc)
             if "validation error" in err_str.lower():

@@ -1,4 +1,3 @@
-import hashlib
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -16,22 +15,6 @@ class ExtractionResult:
     confidence: float
     needs_ocr_fallback: bool
     formatted_output: str = ""
-
-    def to_dict(self) -> dict:
-        return {
-            "source_path": self.source_path,
-            "extractor_type": self.extractor_type,
-            "text": self.text,
-            "tables": self.tables,
-            "sections": self.sections,
-            "metadata": self.metadata,
-            "ocr_notes": self.ocr_notes,
-            "confidence": self.confidence,
-            "needs_ocr_fallback": self.needs_ocr_fallback,
-        }
-
-    def text_hash(self) -> str:
-        return hashlib.sha256(self.text.encode()).hexdigest()
 
 class OCRNoteGenerator:
     _CHAR_PAIRS = [

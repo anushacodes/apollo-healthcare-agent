@@ -19,7 +19,7 @@ def test_chunker():
 
 
 def test_rag_streaming():
-    from app.agent.rag_agent import run_rag_streaming
+    from app.agent.rag.graph import run_rag_streaming
     from app.agent.seed_patient import get_case
 
     async def _run():

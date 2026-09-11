@@ -138,7 +138,7 @@ async def warm_corpus() -> None:
 # ── Phase 4: Pre-run RAG pipeline for all questions ───────────────────────
 async def warm_rag_answers() -> None:
     log.info("Phase 4 — Pre-generating RAG answers for all suggestion questions…")
-    from app.agent.rag_agent import run_rag_streaming
+    from app.agent.rag.graph import run_rag_streaming
     from app.agent.seed_patient import CASES
     from app.agent.sqlite_cache import get_answer
 

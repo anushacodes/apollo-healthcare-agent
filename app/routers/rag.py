@@ -4,7 +4,7 @@ import logging
 from fastapi import APIRouter, File, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
-from app.agent.rag_agent import run_rag_streaming
+from app.agent.rag.graph import run_rag_streaming
 from app.agent.seed_patient import get_case
 from app.agent.sqlite_cache import hash_text, mark_document_indexed
 from app.config import settings

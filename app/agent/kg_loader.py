@@ -1,3 +1,4 @@
+import functools
 import json
 import logging
 from pathlib import Path
@@ -6,20 +7,18 @@ from typing import Any
 log = logging.getLogger(__name__)
 
 _KG_DIR = Path(__file__).parent.parent.parent / "knowledge_graph"
-_LOCAL_CACHE: dict[str, dict] = {}
 
 
+@functools.cache
 def _load_local() -> dict[str, dict]:
-    global _LOCAL_CACHE
-    if _LOCAL_CACHE:
-        return _LOCAL_CACHE
+    kg: dict[str, dict] = {}
     for path in _KG_DIR.glob("*.json"):
         try:
-            _LOCAL_CACHE[path.stem] = json.loads(path.read_text(encoding="utf-8"))
+            kg[path.stem] = json.loads(path.read_text(encoding="utf-8"))
         except Exception as exc:
             log.warning(f"[kg] Failed to load {path.name}: {exc}")
-    log.info(f"[kg] Loaded {len(_LOCAL_CACHE)} conditions from local JSON")
-    return _LOCAL_CACHE
+    log.info(f"[kg] Loaded {len(kg)} conditions from local JSON")
+    return kg
 
 
 def search_by_symptoms(symptoms: list[str]) -> list[dict[str, Any]]:

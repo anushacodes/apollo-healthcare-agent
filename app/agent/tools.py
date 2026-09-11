@@ -1,10 +1,7 @@
 import math
 from typing import Any
 
-from langchain_core.tools import tool
 
-
-@tool
 def ascvd_risk_calculator(
     age: int,
     total_cholesterol: float,
@@ -99,7 +96,6 @@ def ascvd_risk_calculator(
     }
 
 
-@tool
 def wells_dvt_score(
     active_cancer: bool = False,
     paralysis_or_immobilization: bool = False,
@@ -154,7 +150,6 @@ def wells_dvt_score(
     }
 
 
-@tool
 def cha2ds2_vasc_score(
     congestive_heart_failure: bool = False,
     hypertension: bool = False,
@@ -204,4 +199,4 @@ def cha2ds2_vasc_score(
 
 # Registry for the graph to reference by name
 CALCULATOR_TOOLS = [ascvd_risk_calculator, wells_dvt_score, cha2ds2_vasc_score]
-TOOL_MAP = {t.name: t for t in CALCULATOR_TOOLS}
+TOOL_MAP = {fn.__name__: fn for fn in CALCULATOR_TOOLS}

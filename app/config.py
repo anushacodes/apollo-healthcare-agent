@@ -32,9 +32,6 @@ class Settings(BaseSettings):
     langfuse_secret_key: str | None = Field(default=None, alias="LANGFUSE_SECRET_KEY")
     langfuse_host: str = Field(default="http://localhost:3001", alias="LANGFUSE_HOST")
 
-    database_url: str = Field(default="sqlite:///./medcontext.db", alias="DATABASE_URL")
-    database_key: str | None = Field(default=None, alias="DATABASE_KEY")
-
     # App / filesystem
     data_root: str = Field(default="data", alias="DATA_ROOT")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")

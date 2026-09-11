@@ -3,7 +3,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 
-from app.agent.graph import run_graph_streaming
+from app.agent.diagnostics.graph import run_graph_streaming
 from app.agent.seed_patient import get_case, list_cases
 
 log = logging.getLogger(__name__)
