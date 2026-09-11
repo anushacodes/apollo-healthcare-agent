@@ -17,7 +17,6 @@ Flags:
     --live-only   Skip the stub test and go straight to live
 """
 
-from __future__ import annotations
 
 import argparse
 import sys

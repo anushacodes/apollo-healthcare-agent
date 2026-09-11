@@ -5,7 +5,6 @@ so agent outputs are validated at the LLM boundary instead of accessed as
 untyped dicts via `.get(...)` with silent fallbacks.
 """
 
-from __future__ import annotations
 
 from pydantic import BaseModel, Field
 

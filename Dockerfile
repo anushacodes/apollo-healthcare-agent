@@ -15,6 +15,9 @@ WORKDIR /app
 # Copy the project requirements
 COPY pyproject.toml .
 
+# Pre-install CPU-only PyTorch to prevent downloading multi-gigabyte CUDA wheels
+RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
 # Install dependencies
 RUN pip install --no-cache-dir .
 
