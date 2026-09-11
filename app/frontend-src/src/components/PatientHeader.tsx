@@ -1,30 +1,27 @@
 import type { PatientData } from '../types'
 
-function initials(name = ''): string {
-  return name.split(' ').filter(Boolean).map((w) => w[0]?.toUpperCase()).slice(0, 2).join('')
-}
-
 export function PatientHeader({ patient }: { patient: PatientData }) {
   const p = patient.patient || {}
-  const diagnoses = (patient.summary.diagnoses || []).slice(0, 3).map((d) => d.name).join(' · ')
+  const diagnoses = (patient.summary.diagnoses || []).slice(0, 3).map((d) => d.name)
 
   return (
-    <div className="flex items-center gap-4 border-b border-gray-200 bg-white px-6 py-4">
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-600 text-sm font-semibold text-white">
-        {initials(p.name)}
+    <div className="border-b border-rule bg-sheet px-6 py-4">
+      <div className="flex items-baseline justify-between gap-4">
+        <h2 className="font-serif text-xl text-ink">{p.name || 'Unknown patient'}</h2>
+        <span className="shrink-0 rounded-sm border border-caution/30 bg-caution-subtle px-2 py-0.5 text-xs text-caution">
+          Demo patient
+        </span>
       </div>
-      <div className="min-w-0 flex-1">
-        <div className="text-base font-semibold text-gray-900">{p.name || 'Unknown patient'}</div>
-        <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-gray-500">
-          {p.age !== undefined && <span>Age {p.age}</span>}
-          {p.dob && <span>DOB {p.dob}</span>}
-          {p.mrn && <span>MRN {p.mrn}</span>}
-          {diagnoses && <span className="text-gray-600">{diagnoses}</span>}
-        </div>
+      <div className="mt-2 flex flex-wrap divide-x divide-rule text-xs text-ink/60">
+        {p.age !== undefined && <span className="pr-3">Age {p.age}</span>}
+        {p.dob && <span className="px-3">DOB {p.dob}</span>}
+        {p.mrn && <span className="px-3 font-mono">MRN {p.mrn}</span>}
+        {diagnoses.map((name, i) => (
+          <span key={i} className="px-3 text-ink/80">
+            {name}
+          </span>
+        ))}
       </div>
-      <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 ring-1 ring-amber-200">
-        Demo patient
-      </span>
     </div>
   )
 }

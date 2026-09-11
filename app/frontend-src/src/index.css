@@ -1,12 +1,44 @@
 @import "tailwindcss";
 
+@theme {
+  --color-paper: #f4f6f5;
+  --color-sheet: #fbfcfb;
+  --color-ink: #17221e;
+  --color-rule: #c9d2cd;
+  --color-accent: #0b6e64;
+  --color-accent-hover: #095349;
+  --color-accent-subtle: #e4efec;
+  --color-critical: #a32419;
+  --color-critical-subtle: #f7e8e6;
+  --color-caution: #8a5a12;
+  --color-caution-subtle: #f5edda;
+
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Source Serif 4", ui-serif, Georgia, serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Courier New", monospace;
+}
+
 :root {
   color-scheme: light;
 }
 
 body {
   margin: 0;
-  font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
-  background-color: #f7f7f8;
-  color: #1c1c1f;
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.tab-enter {
+  animation: fade-in 200ms ease-out;
 }

@@ -53,27 +53,27 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-paper font-sans text-ink">
       <Sidebar cases={cases} activeKey={patient?._caseKey || null} onSelect={selectCase} kgStatus={kgStatus} />
 
       <main className="flex min-w-0 flex-1 flex-col">
         {!patient ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
-            <p className="text-sm text-gray-500">Select a demo patient from the sidebar to get started.</p>
+            <p className="text-sm text-ink/50">Select a demo patient from the sidebar to get started.</p>
           </div>
         ) : (
           <>
             <PatientHeader patient={patient} />
 
-            <nav className="flex gap-1 border-b border-gray-200 bg-white px-6">
+            <nav className="flex gap-6 border-b border-rule bg-sheet px-6">
               {TABS.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`border-b-2 px-3 py-3 text-sm font-medium transition ${
+                  className={`border-b-2 py-3 text-sm transition-colors ${
                     activeTab === tab.id
-                      ? 'border-indigo-600 text-indigo-700'
-                      : 'border-transparent text-gray-500 hover:text-gray-800'
+                      ? 'border-accent font-medium text-accent'
+                      : 'border-transparent text-ink/50 hover:text-ink'
                   }`}
                 >
                   {tab.label}
@@ -81,7 +81,7 @@ export default function App() {
               ))}
             </nav>
 
-            <div className="min-h-0 flex-1 overflow-y-auto">
+            <div key={activeTab} className="tab-enter min-h-0 flex-1 overflow-y-auto">
               {activeTab === 'summary' && <SummaryTab patient={patient} />}
               {activeTab === 'diagnostics' && <DiagnosticsTab patient={patient} />}
               {activeTab === 'ask' && <AskTab patient={patient} />}

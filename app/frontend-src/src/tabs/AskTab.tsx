@@ -77,10 +77,10 @@ export function AskTab({ patient }: { patient: PatientData }) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-3">
+      <div className="flex items-center justify-between border-b border-rule bg-sheet px-6 py-3">
         <div>
-          <h2 className="text-sm font-semibold text-gray-900">Ask about this patient</h2>
-          <p className="text-xs text-gray-500">Answers are grounded in patient records and clinical guidelines.</p>
+          <h2 className="font-serif text-base text-ink">Ask about this patient</h2>
+          <p className="text-xs text-ink/50">Answers are grounded in patient records and clinical guidelines.</p>
         </div>
         <DetailToggle technical={technical} onChange={setTechnical} label="Show reasoning steps" />
       </div>
@@ -88,13 +88,13 @@ export function AskTab({ patient }: { patient: PatientData }) {
       <div className="flex-1 space-y-4 overflow-y-auto p-6">
         {messages.length === 0 && (
           <div className="mx-auto max-w-md space-y-3 text-center">
-            <p className="text-sm text-gray-500">Ask anything about this patient's records or care plan.</p>
+            <p className="text-sm text-ink/50">Ask anything about this patient's records or care plan.</p>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {SUGGESTIONS.map((q) => (
                 <button
                   key={q}
                   onClick={() => ask(q)}
-                  className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-left text-xs text-gray-600 hover:border-indigo-300 hover:bg-indigo-50"
+                  className="border border-rule bg-sheet px-3 py-2 text-left text-xs text-ink/70 hover:border-accent hover:text-accent"
                 >
                   {q}
                 </button>
@@ -106,7 +106,7 @@ export function AskTab({ patient }: { patient: PatientData }) {
         {messages.map((m, i) =>
           m.role === 'user' ? (
             <div key={i} className="flex justify-end">
-              <div className="max-w-lg rounded-2xl bg-indigo-600 px-4 py-2 text-sm text-white">{m.text}</div>
+              <div className="max-w-lg bg-accent px-4 py-2 text-sm text-white">{m.text}</div>
             </div>
           ) : (
             <AgentMessage key={i} message={m} technical={technical} />
@@ -119,19 +119,19 @@ export function AskTab({ patient }: { patient: PatientData }) {
           e.preventDefault()
           ask(input)
         }}
-        className="flex gap-2 border-t border-gray-200 bg-white p-4"
+        className="flex gap-2 border-t border-rule bg-sheet p-4"
       >
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ask about this patient…"
           disabled={busy}
-          className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400 disabled:bg-gray-50"
+          className="flex-1 border border-rule px-3 py-2 text-sm focus:border-accent focus:outline-none disabled:bg-paper"
         />
         <button
           type="submit"
           disabled={busy}
-          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+          className="bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50"
         >
           Send
         </button>
@@ -143,7 +143,7 @@ export function AskTab({ patient }: { patient: PatientData }) {
 function AgentMessage({ message, technical }: { message: Message; technical: boolean }) {
   if (message.busy) {
     return (
-      <div className="max-w-lg rounded-2xl bg-gray-100 px-4 py-2 text-sm text-gray-500">
+      <div className="max-w-lg border border-rule px-4 py-2 text-sm text-ink/50">
         <span className="inline-block animate-pulse">Thinking…</span>
       </div>
     )
@@ -151,7 +151,7 @@ function AgentMessage({ message, technical }: { message: Message; technical: boo
 
   if (message.isRefusal) {
     return (
-      <div className="max-w-lg rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">
+      <div className="max-w-lg border border-rule bg-sheet px-4 py-3 text-sm text-ink/70">
         Nothing relevant was found in the patient's records or the clinical guideline library. Try rephrasing, or
         upload documents in the Documents tab.
       </div>
@@ -163,43 +163,44 @@ function AgentMessage({ message, technical }: { message: Message; technical: boo
 
   return (
     <div className="max-w-lg space-y-2">
-      <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800">
-        {message.answer}
-      </div>
+      <div className="border border-rule bg-sheet px-4 py-3 text-sm text-ink/90">{message.answer}</div>
 
       {message.citations && message.citations.length > 0 && (
-        <div className="text-xs text-gray-500">
-          Sources: {message.citations.map((c) => c.source_doc || c.title).filter(Boolean).join(', ')}
+        <div className="flex flex-wrap divide-x divide-rule text-xs text-ink/50">
+          {message.citations.map((c, i) => (
+            <span key={i} className="px-2 first:pl-0">
+              {c.source_doc || c.title}
+            </span>
+          ))}
         </div>
       )}
 
-      {faithPct != null && !technical && (
-        <div className="text-xs text-gray-400">{faithfulnessPlain(faithPct)}</div>
-      )}
+      {faithPct != null && !technical && <div className="text-xs text-ink/40">{faithfulnessPlain(faithPct)}</div>}
 
       {technical && (
-        <div className="space-y-2 rounded-lg border border-indigo-200 bg-indigo-50/40 p-3 text-xs">
-          <div className="font-semibold uppercase tracking-wide text-indigo-700">Reasoning trace</div>
+        <div className="space-y-2 border-l-2 border-accent bg-sheet p-3 text-xs">
+          <div className="font-mono text-accent">Reasoning trace</div>
           {message.trace.map((t, i) => (
-            <div key={i} className="font-mono text-gray-600">
+            <div key={i} className="font-mono text-ink/60">
               [{ASK_TECHNICAL_LABELS[t.node] || t.node}] {t.message}
             </div>
           ))}
           {faithPct != null && (
-            <div className="pt-1 text-gray-500">
-              faithfulness {faithPct}% · relevance{' '}
-              {message.evalScores?.context_relevance != null ? Math.round(message.evalScores.context_relevance * 100) : '—'}% ·
-              completeness{' '}
-              {message.evalScores?.answer_completeness != null ? Math.round(message.evalScores.answer_completeness * 100) : '—'}%
+            <div className="flex divide-x divide-rule pt-1 font-mono text-ink/50">
+              <span className="pr-2">faithfulness {faithPct}%</span>
+              <span className="px-2">
+                relevance {message.evalScores?.context_relevance != null ? Math.round(message.evalScores.context_relevance * 100) : '—'}%
+              </span>
+              <span className="pl-2">
+                completeness {message.evalScores?.answer_completeness != null ? Math.round(message.evalScores.answer_completeness * 100) : '—'}%
+              </span>
             </div>
           )}
         </div>
       )}
 
       {!technical && message.trace.length > 0 && (
-        <div className="text-xs text-gray-400">
-          {message.trace.map((t) => ASK_STEP_LABELS[t.node] || t.node).slice(-1)[0]}
-        </div>
+        <div className="text-xs text-ink/40">{message.trace.map((t) => ASK_STEP_LABELS[t.node] || t.node).slice(-1)[0]}</div>
       )}
     </div>
   )

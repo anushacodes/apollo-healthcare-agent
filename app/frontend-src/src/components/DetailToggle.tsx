@@ -9,13 +9,10 @@ export function DetailToggle({ technical, onChange, label = 'Show technical deta
     <button
       type="button"
       onClick={() => onChange(!technical)}
-      className="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white px-3 py-1.5
-                 text-xs font-medium text-gray-600 shadow-sm transition hover:bg-gray-50"
+      className="inline-flex items-center gap-2 border border-rule bg-sheet px-3 py-1.5
+                 font-mono text-xs text-ink/60 transition-colors hover:border-accent hover:text-accent"
     >
-      <span
-        className={`h-2 w-2 rounded-full ${technical ? 'bg-indigo-500' : 'bg-gray-300'}`}
-        aria-hidden
-      />
+      <span className={`h-1.5 w-1.5 ${technical ? 'bg-accent' : 'bg-rule'}`} aria-hidden />
       {technical ? 'Hide technical detail' : label}
     </button>
   )

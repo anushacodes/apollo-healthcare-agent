@@ -49,27 +49,24 @@ export function DiagnosticsTab({ patient }: { patient: PatientData }) {
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-gray-900">Diagnostics</h2>
+        <h2 className="font-serif text-lg text-ink">Diagnostics</h2>
         <DetailToggle technical={technical} onChange={setTechnical} label="Show technical log" />
       </div>
 
       {!started && (
-        <div className="rounded-xl border border-gray-200 bg-white p-6 text-center">
-          <p className="mb-4 text-sm text-gray-600">
+        <div className="border border-rule bg-sheet p-6 text-center">
+          <p className="mb-4 text-sm text-ink/70">
             Run the assistant to review this patient's medications, consider possible diagnoses, and generate a
             clinical summary.
           </p>
-          <button
-            onClick={run}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-          >
+          <button onClick={run} className="bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover">
             Run analysis
           </button>
         </div>
       )}
 
       {started && (
-        <div className="rounded-xl border border-gray-200 bg-white p-5">
+        <div className="border border-rule bg-sheet p-5">
           <div className="space-y-2">
             {DIAGNOSTIC_STEP_ORDER.map((step, idx) => {
               const nextPendingIdx = DIAGNOSTIC_STEP_ORDER.findIndex((s) => !completedSteps.has(s))
@@ -78,15 +75,15 @@ export function DiagnosticsTab({ patient }: { patient: PatientData }) {
             })}
           </div>
           {!running && (
-            <button onClick={run} className="mt-4 text-sm font-medium text-indigo-600 hover:text-indigo-800">
-              ↻ Run again
+            <button onClick={run} className="mt-4 font-mono text-xs text-accent hover:text-accent-hover">
+              Run again
             </button>
           )}
         </div>
       )}
 
       {errored && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div className="border border-critical/30 bg-critical-subtle p-4 text-sm text-critical">
           Something went wrong while running the analysis. You can try again.
         </div>
       )}
@@ -97,18 +94,14 @@ export function DiagnosticsTab({ patient }: { patient: PatientData }) {
       {summaryEvent && <SummaryPanel event={summaryEvent} />}
 
       {technical && events.length > 0 && (
-        <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-5">
-          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-indigo-700">
-            Technical execution log
-          </div>
-          <div className="space-y-1.5 font-mono text-xs text-gray-600">
-            {events.map((e, i) => (
-              <div key={i}>
-                <span className="text-indigo-700">[{DIAGNOSTIC_TECHNICAL_LABELS[e.node] || e.node}]</span>{' '}
-                {sanitizeAuditText(e.audit_entry || e.error || '')}
-              </div>
-            ))}
-          </div>
+        <div className="space-y-1.5 border-t-2 border-accent pt-4 font-mono text-xs text-ink/70">
+          <div className="mb-2 text-accent">Technical execution log</div>
+          {events.map((e, i) => (
+            <div key={i}>
+              <span className="text-accent">[{DIAGNOSTIC_TECHNICAL_LABELS[e.node] || e.node}]</span>{' '}
+              {sanitizeAuditText(e.audit_entry || e.error || '')}
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -119,17 +112,13 @@ function StepRow({ label, status }: { label: string; status: StepStatus }) {
   return (
     <div className="flex items-center gap-3 text-sm">
       <span
-        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs ${
-          status === 'done'
-            ? 'bg-emerald-100 text-emerald-700'
-            : status === 'active'
-              ? 'bg-indigo-100 text-indigo-700'
-              : 'bg-gray-100 text-gray-400'
+        className={`flex h-4 w-4 shrink-0 items-center justify-center text-xs ${
+          status === 'done' ? 'bg-accent text-white' : status === 'active' ? 'border border-accent text-accent' : 'border border-rule text-ink/30'
         }`}
       >
         {status === 'done' ? '✓' : status === 'active' ? '…' : ''}
       </span>
-      <span className={status === 'pending' ? 'text-gray-400' : 'text-gray-800'}>{label}</span>
+      <span className={status === 'pending' ? 'text-ink/35' : 'text-ink/85'}>{label}</span>
     </div>
   )
 }
@@ -141,7 +130,7 @@ function InteractionsPanel({ event }: { event: AgentEvent }) {
   if (!interactions.length) {
     return (
       <Panel title="Medication check">
-        <p className="text-sm text-gray-600">No medication interactions were found.</p>
+        <p className="text-sm text-ink/60">No medication interactions were found.</p>
       </Panel>
     )
   }
@@ -149,9 +138,9 @@ function InteractionsPanel({ event }: { event: AgentEvent }) {
     <Panel title="Medication check" badge={`Risk: ${risk}`}>
       <div className="space-y-2">
         {interactions.map((i, idx) => (
-          <div key={idx} className="border-b border-gray-100 pb-2 last:border-0">
-            <div className="text-sm font-medium text-gray-900">{((i.drugs as string[]) || []).join(' + ')}</div>
-            <div className="text-xs text-gray-500">{i.clinical_significance as string}</div>
+          <div key={idx} className="border-b border-rule pb-2 last:border-0">
+            <div className="text-sm font-medium text-ink">{((i.drugs as string[]) || []).join(' + ')}</div>
+            <div className="text-xs text-ink/50">{i.clinical_significance as string}</div>
           </div>
         ))}
       </div>
@@ -168,18 +157,15 @@ function DiagnosesPanel({ event }: { event: AgentEvent }) {
         {proposed.map((dx, idx) => {
           const icd = dx.icd_code as string | undefined
           const hint = explainIcdCode(icd)
+          const isPrimary = dx.name === data.primary_diagnosis
           return (
-            <div key={idx} className="border-b border-gray-100 pb-3 last:border-0">
+            <div key={idx} className={`border-b border-rule pb-3 last:border-0 ${isPrimary ? 'border-l-2 border-l-accent pl-3' : ''}`}>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-900">{dx.name as string}</span>
-                {dx.name === data.primary_diagnosis && (
-                  <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-medium text-indigo-700">
-                    Most likely
-                  </span>
-                )}
+                <span className="text-sm font-medium text-ink">{dx.name as string}</span>
+                {isPrimary && <span className="font-mono text-[10px] text-accent">most likely</span>}
               </div>
-              {hint && <div className="text-xs text-gray-500">{hint}</div>}
-              <p className="mt-1 text-sm text-gray-600">{dx.reasoning as string}</p>
+              {hint && <div className="text-xs text-ink/50">{hint}</div>}
+              <p className="mt-1 text-sm text-ink/70">{dx.reasoning as string}</p>
             </div>
           )
         })}
@@ -198,21 +184,21 @@ function CalculatorsPanel({ event, technical }: { event: AgentEvent; technical: 
           if (r.error) return null
           const res = (r.result as Record<string, unknown>) || {}
           return (
-            <div key={idx} className="border-b border-gray-100 pb-2 last:border-0">
-              <div className="text-sm font-medium text-gray-900">{(res.tool as string) || (r.tool as string)}</div>
+            <div key={idx} className="border-b border-rule pb-2 last:border-0">
+              <div className="text-sm font-medium text-ink">{(res.tool as string) || (r.tool as string)}</div>
               {technical ? (
-                <div className="mt-1 grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs text-gray-600">
+                <div className="mt-1 grid grid-cols-2 gap-x-4 gap-y-0.5 font-mono text-xs text-ink/60">
                   {Object.entries(res)
                     .filter(([k]) => k !== 'tool')
                     .map(([k, v]) => (
                       <div key={k} className="flex justify-between gap-2">
-                        <span className="text-gray-400">{explainCalculatorKey(k)}</span>
+                        <span className="text-ink/35">{explainCalculatorKey(k)}</span>
                         <span>{String(v)}</span>
                       </div>
                     ))}
                 </div>
               ) : (
-                <p className="text-xs text-gray-500">Result available in technical view.</p>
+                <p className="text-xs text-ink/50">Result available in technical view.</p>
               )}
             </div>
           )
@@ -227,11 +213,13 @@ function SummaryPanel({ event }: { event: AgentEvent }) {
   if (!summary) return null
   return (
     <Panel title="Summary">
-      {summary.patient_facing_summary && <p className="text-sm text-gray-700">{summary.patient_facing_summary}</p>}
+      {summary.patient_facing_summary && <p className="text-sm text-ink/80">{summary.patient_facing_summary}</p>}
       {summary.follow_up_actions?.length > 0 && (
-        <ul className="mt-3 space-y-1 text-sm text-gray-600">
+        <ul className="mt-3 space-y-1 text-sm text-ink/70">
           {summary.follow_up_actions.map((a, i) => (
-            <li key={i}>→ {a}</li>
+            <li key={i} className="border-l-2 border-rule pl-3">
+              {a}
+            </li>
           ))}
         </ul>
       )}
@@ -241,12 +229,12 @@ function SummaryPanel({ event }: { event: AgentEvent }) {
 
 function Panel({ title, badge, children }: { title: string; badge?: string; children: ReactNode }) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5">
+    <section className="border-t border-rule pt-4">
       <div className="mb-3 flex items-center justify-between">
-        <div className="text-sm font-semibold text-gray-900">{title}</div>
-        {badge && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">{badge}</span>}
+        <h3 className="font-serif text-base text-ink">{title}</h3>
+        {badge && <span className="font-mono text-xs text-ink/50">{badge}</span>}
       </div>
       {children}
-    </div>
+    </section>
   )
 }

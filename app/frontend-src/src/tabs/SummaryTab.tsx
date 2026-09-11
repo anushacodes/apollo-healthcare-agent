@@ -9,40 +9,40 @@ export function SummaryTab({ patient }: { patient: PatientData }) {
   const cs = s.clinical_summary
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 p-6">
+    <div className="mx-auto max-w-3xl space-y-8 p-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-gray-900">Summary</h2>
+        <h2 className="font-serif text-lg text-ink">Summary</h2>
         <DetailToggle technical={technical} onChange={setTechnical} label="Show full clinical detail" />
       </div>
 
       {/* Plain-language summary — always shown */}
-      <div className="rounded-xl border border-gray-200 bg-white p-5">
-        <p className="text-sm leading-relaxed text-gray-700">
-          {cs?.patient_facing_summary || cs?.chief_complaint || s.summary_narrative || 'No summary available yet.'}
-        </p>
-      </div>
+      <p className="text-sm leading-relaxed text-ink/85">
+        {cs?.patient_facing_summary || cs?.chief_complaint || s.summary_narrative || 'No summary available yet.'}
+      </p>
 
       {/* Key concerns — the one thing that always matters, kept visible */}
       {cs?.key_concerns && cs.key_concerns.length > 0 && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
-          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-amber-800">Key concerns</div>
-          <ul className="space-y-1 text-sm text-amber-900">
+        <Section title="Key concerns" tone="caution">
+          <ul className="space-y-1.5 text-sm text-ink/85">
             {cs.key_concerns.map((c, i) => (
-              <li key={i}>⚠ {c}</li>
+              <li key={i} className="border-l-2 border-caution pl-3">
+                {c}
+              </li>
             ))}
           </ul>
-        </div>
+        </Section>
       )}
 
       {cs?.follow_up_actions && cs.follow_up_actions.length > 0 && (
-        <div className="rounded-xl border border-gray-200 bg-white p-5">
-          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">What happens next</div>
-          <ul className="space-y-1 text-sm text-gray-700">
+        <Section title="What happens next">
+          <ul className="space-y-1.5 text-sm text-ink/85">
             {cs.follow_up_actions.map((a, i) => (
-              <li key={i}>→ {a}</li>
+              <li key={i} className="border-l-2 border-rule pl-3">
+                {a}
+              </li>
             ))}
           </ul>
-        </div>
+        </Section>
       )}
 
       {/* Always-visible scannable facts, one section at a time */}
@@ -50,12 +50,12 @@ export function SummaryTab({ patient }: { patient: PatientData }) {
         {(s.diagnoses || []).map((dx, i) => {
           const hint = explainIcdCode(dx.icd_code)
           return (
-            <div key={i} className="flex items-start justify-between gap-3 border-b border-gray-100 py-2 last:border-0">
+            <div key={i} className="flex items-start justify-between gap-3 border-b border-rule py-2 last:border-0">
               <div>
-                <div className="text-sm font-medium text-gray-900">{dx.name}</div>
-                {hint && <div className="text-xs text-gray-500">{hint}</div>}
+                <div className="text-sm font-medium text-ink">{dx.name}</div>
+                {hint && <div className="text-xs text-ink/50">{hint}</div>}
               </div>
-              <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">{dx.status}</span>
+              <span className="shrink-0 text-xs text-ink/50">{dx.status}</span>
             </div>
           )
         })}
@@ -63,9 +63,12 @@ export function SummaryTab({ patient }: { patient: PatientData }) {
 
       <FactSection title="Medications" count={s.medications?.length}>
         {(s.medications || []).map((m, i) => (
-          <div key={i} className="flex items-baseline justify-between border-b border-gray-100 py-2 last:border-0 text-sm">
-            <span className="font-medium text-gray-900">{m.name}</span>
-            <span className="text-gray-500">{m.dose} · {m.frequency}</span>
+          <div key={i} className="flex items-baseline justify-between gap-3 border-b border-rule py-2 last:border-0 text-sm">
+            <span className="font-medium text-ink">{m.name}</span>
+            <span className="flex divide-x divide-rule text-ink/55">
+              <span className="pr-2">{m.dose}</span>
+              <span className="pl-2">{m.frequency}</span>
+            </span>
           </div>
         ))}
       </FactSection>
@@ -74,10 +77,13 @@ export function SummaryTab({ patient }: { patient: PatientData }) {
         {(s.lab_results || []).map((l, i) => {
           const critical = isCriticalLabFlag(l.flag)
           return (
-            <div key={i} className="flex items-center justify-between border-b border-gray-100 py-2 last:border-0 text-sm">
-              <span className="text-gray-800">{l.test_name}</span>
-              <span className={critical ? 'font-medium text-red-600' : 'text-gray-500'}>
-                {l.value} {l.unit} — {explainLabFlag(l.flag)}
+            <div key={i} className="flex items-center justify-between gap-3 border-b border-rule py-2 last:border-0 text-sm">
+              <span className="text-ink/85">{l.test_name}</span>
+              <span className="flex items-baseline gap-2">
+                <span className={critical ? 'font-medium text-critical' : 'text-ink/70'}>
+                  {l.value} {l.unit}
+                </span>
+                <span className={`text-xs ${critical ? 'text-critical' : 'text-ink/45'}`}>{explainLabFlag(l.flag)}</span>
               </span>
             </div>
           )
@@ -86,25 +92,23 @@ export function SummaryTab({ patient }: { patient: PatientData }) {
 
       {/* Technical view: everything, unfiltered */}
       {technical && (
-        <div className="space-y-4 rounded-xl border border-indigo-200 bg-indigo-50/40 p-5">
-          <div className="text-xs font-semibold uppercase tracking-wide text-indigo-700">Full clinical detail</div>
+        <div className="space-y-4 border-t-2 border-accent pt-5">
+          <div className="font-mono text-xs text-accent">Full clinical detail</div>
 
           {cs && (
-            <div className="space-y-3 text-sm text-gray-700">
+            <div className="space-y-3 text-sm text-ink/80">
               <TechField label="Chief complaint" value={cs.chief_complaint} />
               <TechField label="History of present illness" value={cs.history_of_present_illness} />
               <TechField label="Clinical assessment" value={cs.clinical_assessment} />
-              {cs.model_used && (
-                <div className="font-mono text-xs text-gray-400">generated by {cs.model_used}</div>
-              )}
+              {cs.model_used && <div className="font-mono text-xs text-ink/35">generated by {cs.model_used}</div>}
             </div>
           )}
 
           <div>
-            <div className="mb-1 text-xs font-semibold text-gray-500">ICD codes</div>
-            <div className="flex flex-wrap gap-2">
+            <div className="mb-1.5 font-mono text-xs text-ink/50">ICD codes</div>
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
               {(s.diagnoses || []).map((dx, i) => (
-                <span key={i} className="rounded bg-white px-2 py-0.5 font-mono text-xs text-gray-600 ring-1 ring-gray-200">
+                <span key={i} className="font-mono text-xs text-ink/70">
                   {dx.icd_code || '—'} {dx.name}
                 </span>
               ))}
@@ -113,8 +117,8 @@ export function SummaryTab({ patient }: { patient: PatientData }) {
 
           {s.clinical_flags && s.clinical_flags.length > 0 && (
             <div>
-              <div className="mb-1 text-xs font-semibold text-gray-500">Clinical flags</div>
-              <ul className="space-y-1 text-sm text-gray-700">
+              <div className="mb-1.5 font-mono text-xs text-ink/50">Clinical flags</div>
+              <ul className="space-y-1 text-sm text-ink/80">
                 {s.clinical_flags.map((f, i) => (
                   <li key={i}>{typeof f === 'string' ? f : f.text}</li>
                 ))}
@@ -124,14 +128,15 @@ export function SummaryTab({ patient }: { patient: PatientData }) {
 
           {s.timeline && s.timeline.length > 0 && (
             <div>
-              <div className="mb-1 text-xs font-semibold text-gray-500">Timeline</div>
-              <ul className="space-y-1 text-sm text-gray-700">
+              <div className="mb-1.5 font-mono text-xs text-ink/50">Timeline</div>
+              <ol className="space-y-1 text-sm text-ink/80">
                 {[...s.timeline].reverse().map((t, i) => (
-                  <li key={i}>
-                    <span className="font-mono text-xs text-gray-400">{t.date}</span> — {t.event}
+                  <li key={i} className="flex gap-3">
+                    <span className="font-mono text-xs text-ink/40">{t.date}</span>
+                    <span>{t.event}</span>
                   </li>
                 ))}
-              </ul>
+              </ol>
             </div>
           )}
         </div>
@@ -140,12 +145,21 @@ export function SummaryTab({ patient }: { patient: PatientData }) {
   )
 }
 
+function Section({ title, tone, children }: { title: string; tone?: 'caution'; children: ReactNode }) {
+  return (
+    <div>
+      <h3 className={`mb-2 font-serif text-base ${tone === 'caution' ? 'text-caution' : 'text-ink'}`}>{title}</h3>
+      {children}
+    </div>
+  )
+}
+
 function FactSection({ title, count, children }: { title: string; count?: number; children: ReactNode }) {
   if (!count) return null
   return (
-    <details className="rounded-xl border border-gray-200 bg-white p-5" open>
-      <summary className="cursor-pointer text-sm font-semibold text-gray-900">
-        {title} <span className="ml-1 text-xs font-normal text-gray-400">({count})</span>
+    <details className="border-t border-rule pt-4" open>
+      <summary className="cursor-pointer font-serif text-base text-ink">
+        {title} <span className="ml-1 font-mono text-xs text-ink/35">({count})</span>
       </summary>
       <div className="mt-3">{children}</div>
     </details>
@@ -155,7 +169,7 @@ function FactSection({ title, count, children }: { title: string; count?: number
 function TechField({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-xs font-semibold text-gray-500">{label}</div>
+      <div className="font-mono text-xs text-ink/50">{label}</div>
       <p>{value}</p>
     </div>
   )
