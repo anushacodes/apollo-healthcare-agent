@@ -1,0 +1,26 @@
+SYNTHETIC TRAINING RECORD · NOT FOR CLINICAL USE
+APOLLO TRAINING CLINIC
+Medication reconciliation
+Recorded medicines and allergy review
+Patient: Robert Chen
+DOB: 1953-06-08
+MRN: RC-DEMO-002
+Report Date: 2024-06-12
+
+The entries below reproduce selected medicines from Robert Chen's synthetic admission record. A recorded medication is not a new prescription. The held status of metformin must remain visible when this document is reviewed or imported.
+
+Current medications
+- Ramipril 5mg daily
+- Carvedilol 12.5mg twice daily
+- Metformin 500mg twice daily (held during admission)
+
+Allergy record
+Allergy: Aspirin — bronchospasm
+
+Reconciliation note
+Other medicines remain listed in the existing patient record. This focused reconciliation sheet does not replace the complete medication list or authorize a dose change.
+
+Recorded next step
+Follow-up: Confirm the held medication status with the prescribing team.
+
+APOLLO-RC-002 · Fictional patient information for the Apollo workflow demonstration.

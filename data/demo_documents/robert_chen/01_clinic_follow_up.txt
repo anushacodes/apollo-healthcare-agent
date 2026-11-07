@@ -1,0 +1,23 @@
+SYNTHETIC TRAINING RECORD · NOT FOR CLINICAL USE
+APOLLO TRAINING CLINIC
+Respiratory and cardiac follow-up
+Outpatient clinic letter
+Patient: Robert Chen
+DOB: 1953-06-08
+MRN: RC-DEMO-002
+Report Date: 2024-06-12
+
+Robert Chen is a 71-year-old man attending review after an admission for worsening breathlessness and ankle swelling. His background includes chronic obstructive pulmonary disease, heart failure with reduced ejection fraction, type 2 diabetes and hypertension. This letter records the problems discussed at review; the medication list and laboratory findings are supplied separately.
+
+Recorded assessment
+Diagnosis: Chronic obstructive pulmonary disease (COPD)
+Diagnosis: Heart failure with reduced ejection fraction
+Diagnosis: No evidence of pneumonia
+
+Clinical context
+The record describes a 30-pack-year smoking history, productive cough and reduced exercise tolerance. Spirometry previously showed FEV1 of 42% predicted, and echocardiography recorded an ejection fraction of 38%. Medication reconciliation and review of renal results remain part of the next clinical review.
+
+Recorded next step
+Follow-up: Review the medication list and laboratory results at the next clinic visit.
+
+APOLLO-RC-001 · Fictional patient information for the Apollo workflow demonstration.
