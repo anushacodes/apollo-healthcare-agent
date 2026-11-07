@@ -1,0 +1,11 @@
+.git
+.venv
+.env
+**/__pycache__
+.pytest_cache
+.ruff_cache
+app/frontend-src/node_modules
+app/frontend_dist
+data/.cache
+data/patients
+tests

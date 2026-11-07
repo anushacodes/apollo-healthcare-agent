@@ -209,14 +209,19 @@ app/.DS_Store
 fREADME.md
 .DS_Store
 medcontext/
-uv.lock
 apollo_architecture_details.md
 
 CLAUDE.md
-docs/
 
 app/frontend-src/node_modules/
 app/frontend_dist/
 
 .claude/skills/
 skills-lock.json
+
+# Runtime records and compiler output
+data/patients/
+*.tsbuildinfo
+
+# Local architecture browser-review evidence (portable diagram sources are tracked)
+docs/diagrams/*.visual-check.*

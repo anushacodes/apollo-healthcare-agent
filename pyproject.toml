@@ -19,8 +19,6 @@ dependencies = [
     "httpx>=0.27.0",
     # Agent orchestration
     "langgraph>=0.1.0",
-    # Document parsing (ingestion pipeline)
-    "docling>=2.0.0",
     # Retrieval
     # Vector store
     "qdrant-client>=1.9.0",
@@ -28,21 +26,18 @@ dependencies = [
     "instructor>=1.3.0",
     # Web search
     "tavily-python>=0.5.0",
-    # Numerics
-    "numpy>=1.24.0",
-    "sentence-transformers>=2.7.0",
     "duckduckgo-search>=6.0",
     "charset-normalizer>=3.5.1",
     "fastmcp>=4.0.3",
 ]
 
-# Heavy / system-level deps — install manually when needed:
-#   sqlcipher3>=0.5.0       (encrypted SQLite; requires libsqlcipher native)
-#   openai-whisper>=20231117 (audio transcription; requires ffmpeg)
-#   transformers>=5.0.0      (HuggingFace models)
-#   torch>=2.0.0             (GPU; large download)
-#   mcp>=1.0.0 / fastmcp     (MCP tool wrapping)
-#   biopython>=1.83          (PubMed search)
+# Optional local model stack; plain-text ingestion and sparse retrieval work without it.
+[project.optional-dependencies]
+inference = [
+    "docling>=2.0.0",
+    "numpy>=1.24.0",
+    "sentence-transformers>=2.7.0",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -52,7 +47,9 @@ build-backend = "hatchling.build"
 packages = ["app"]
 
 [tool.pytest.ini_options]
+testpaths = ["tests"]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 
 [dependency-groups]
 dev = [
@@ -69,5 +66,5 @@ target-version = "py311"
 # Baseline: syntax errors, unused code, import hygiene, modern-Python upgrades.
 # Deliberately not enabling BLE (blind-except) or S (bandit, e.g. bare except-pass)
 # yet — both flag real issues but fixing them needs per-callsite review, not a
-# mechanical CI-setup pass. Tracked as follow-up cleanup in docs/TASKS.md.
+# mechanical CI-setup pass. See docs/TASKS.md for remaining work.
 select = ["E4", "E7", "E9", "F", "I", "UP"]

@@ -1,40 +1,26 @@
-FROM python:3.11-slim
+FROM node:24-bookworm-slim AS frontend
+WORKDIR /frontend
+COPY app/frontend-src/package*.json ./
+RUN npm ci
+COPY app/frontend-src/ ./
+RUN npm run build
 
-# Install system dependencies required for OpenCV, PyMuPDF, sqlcipher etc.
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    libgl1 \
-    libglib2.0-0 \
-    sqlite3 \
-    libsqlite3-dev \
-    libssl-dev \
-    && rm -rf /var/lib/apt/lists/*
-
+FROM python:3.12-slim
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1 libglib2.0-0 && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-
-# Copy the project requirements
-COPY pyproject.toml .
-
-# Pre-install CPU-only PyTorch to prevent downloading multi-gigabyte CUDA wheels
+# Keep the large inference dependencies on CPU in the container.
 RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
-
-# Install dependencies
-RUN pip install --no-cache-dir .
-
-# Copy the source code
-COPY app /app/app
-COPY scripts /app/scripts
-COPY data /app/data
-COPY knowledge_graph /app/knowledge_graph
-
-# Ensure data directories exist
-RUN mkdir -p /app/data/patients /app/data/seed /app/data/.cache
-
-# Expose the API port
-EXPOSE 8000
-
-# Set environment variables for local testing
+COPY pyproject.toml README.md ./
+COPY app ./app
+RUN pip install --no-cache-dir '.[inference]'
+COPY --from=frontend /frontend_dist ./app/frontend_dist
+COPY scripts ./scripts
+COPY data ./data
+COPY knowledge_graph ./knowledge_graph
+RUN mkdir -p /app/data/patients /app/data/.cache
 ENV PYTHONUNBUFFERED=1
-
-# Start the FastAPI server
+EXPOSE 8000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=120s \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health', timeout=4)"
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
