@@ -1,0 +1,63 @@
+[
+  {
+    "id": "documented-condition",
+    "patient": {"patient_id": "eval-1", "summary": {"diagnoses": [{"name": "Diabetes", "status": "active"}]}, "source_documents": {"note": "Diabetes documented today."}},
+    "proposals": [{"name": "Diabetes"}],
+    "expected": {"Diabetes": {"assertion": "documented", "has_evidence": true}}
+  },
+  {
+    "id": "negated-condition",
+    "patient": {"patient_id": "eval-2", "summary": {}, "source_documents": {"note": "No pneumonia. Continue follow-up."}},
+    "proposals": [{"name": "Pneumonia"}],
+    "expected": {"Pneumonia": {"assertion": "negated", "has_evidence": true}}
+  },
+  {
+    "id": "historical-condition",
+    "patient": {"patient_id": "eval-3", "summary": {}, "source_documents": {"note": "History of asthma, now resolved."}},
+    "proposals": [{"name": "Asthma"}],
+    "expected": {"Asthma": {"assertion": "historical", "has_evidence": true}}
+  },
+  {
+    "id": "suspected-condition",
+    "patient": {"patient_id": "eval-4", "summary": {"diagnoses": [{"name": "Thrombophilia", "status": "under investigation"}]}, "source_documents": {"note": "Possible thrombophilia."}},
+    "proposals": [{"name": "Thrombophilia"}],
+    "expected": {"Thrombophilia": {"assertion": "suspected", "has_evidence": true}}
+  },
+  {
+    "id": "conflicting-records",
+    "patient": {"patient_id": "eval-5", "summary": {"diagnoses": [{"name": "Diabetes", "status": "active"}]}, "source_documents": {"note": "No diabetes."}},
+    "proposals": [{"name": "Diabetes"}],
+    "expected": {"Diabetes": {"assertion": "conflicting", "has_evidence": true}}
+  },
+  {
+    "id": "unsupported-inference",
+    "patient": {"patient_id": "eval-6", "summary": {}, "source_documents": {"note": "Fatigue. Workup pending."}},
+    "proposals": [{"name": "Glioblastoma"}],
+    "expected": {"Glioblastoma": {"assertion": "ai_suggested", "has_evidence": false}}
+  },
+  {
+    "id": "sentence-boundary",
+    "patient": {"patient_id": "eval-7", "summary": {"diagnoses": [{"name": "Hypertension", "status": "active"}]}, "source_documents": {"note": "No diabetes. Hypertension documented."}},
+    "proposals": [{"name": "Hypertension"}],
+    "expected": {"Hypertension": {"assertion": "documented", "has_evidence": true}}
+  },
+  {
+    "id": "missing-calculator-input",
+    "patient": {"patient_id": "eval-8", "summary": {}, "source_documents": {}},
+    "proposals": [],
+    "calculator": {"tool": "ascvd_risk_calculator", "params": {"age": 60, "total_cholesterol": 190, "hdl_cholesterol": 45, "sex": "male", "race": "white", "on_bp_treatment": false, "is_smoker": false, "has_diabetes": false}},
+    "expected_missing": ["systolic_bp"],
+    "expected": {}
+  },
+  {
+    "id": "insufficient-answer-context",
+    "patient": {"patient_id": "eval-9", "summary": {}, "source_documents": {}},
+    "proposals": [], "expected": {}, "chunks": [], "expected_refusal": true
+  },
+  {
+    "id": "unicode-source-offsets",
+    "patient": {"patient_id": "eval-10", "summary": {}, "source_documents": {"note": "🩺 History of asthma, now resolved."}},
+    "proposals": [{"name": "Asthma"}],
+    "expected": {"Asthma": {"assertion": "historical", "has_evidence": true}}
+  }
+]
