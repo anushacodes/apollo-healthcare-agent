@@ -60,7 +60,7 @@ def _groq_structured(response_model: type[_T], user: str, system: str = "") -> _
                 reasoning_effort="low",
             )
         except Exception as exc:
-            log.warning("[rag] Groq structured tool call failed, trying JSON fallback: %s", exc)
+            log.warning("[rag] Groq structured tool call failed (%s), trying JSON fallback", type(exc).__name__)
             raw_dict, _ = call_llm_json(messages, temperature=0.1, max_tokens=2048)
             return response_model.model_validate(raw_dict)
 

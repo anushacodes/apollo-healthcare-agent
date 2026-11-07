@@ -122,6 +122,10 @@ flowchart LR
 
 The router selects patient records, guidelines, or both; the diagram groups those retrieval branches for readability. Retrieval fuses dense and sparse results using reciprocal rank fusion; web search fills gaps when research evidence is sparse. The sufficiency check currently uses chunk count.
 
+Generation and evaluation receive the same numbered evidence excerpts, including the later laboratory sections of structured records. Evaluation checks the full generated answer. A patient-record question can use a single available source.
+
+Answers must include numbered citations to the supplied sources. Missing citations or unknown source numbers trigger one regeneration attempt; persistent failures return an error. This checks reference validity, while model-based evaluation assesses whether the claims are supported.
+
 The answer appears before evaluation finishes. Subsequent events add review scores, warnings, and follow-up questions. Evaluation annotates the response; it does not block its initial display. Eligible answers are cached for seven days; low-faithfulness, hallucination-flagged, or unevaluated answers are not cached. Indexing a document invalidates that patient's answer cache.
 
 ## Quick start
@@ -146,6 +150,8 @@ uv run --frozen uvicorn app.main:app --reload --port 8000
 Open **[localhost:8000](http://localhost:8000)**. Explore **Overview**, run **Analysis**, ask a question in **Ask**, or read source records in **Documents**.
 
 No key is needed to browse records, ingest text, use sparse retrieval, or try the human-review workflow with calculator and heuristic fallbacks. Generated answers and model-based evaluation require Groq or OpenRouter.
+
+Restart the backend after editing `.env`. Ask reports missing or rejected keys, rate limits, unavailable credits, connection failures, and timeouts with specific next steps. Provider requests use a 30-second timeout and fall back to the other provider when it is configured.
 
 <details>
 <summary>Try the connected document workflow</summary>

@@ -1,7 +1,7 @@
 import json
 import logging
 from functools import lru_cache
-from typing import Any
+from typing import Any, Never
 
 import groq
 import instructor
@@ -29,27 +29,42 @@ def _provider_error(provider: str, exc: Exception) -> LLMProviderError:
     model = "GROQ_MODEL" if provider == "groq" else "OPENROUTER_MODEL"
     status = getattr(exc, "status_code", None)
     if status == 401:
-        return LLMProviderError("invalid_api_key", f"{name} rejected its API key. Check {key} in .env and restart the backend.")
+        return LLMProviderError(
+            "invalid_api_key", f"{name} rejected its API key. Check {key} in .env and restart the backend.",
+        )
     if status == 402:
-        return LLMProviderError("insufficient_credits", f"{name} requires available credits. Check your provider account balance.")
+        return LLMProviderError(
+            "insufficient_credits", f"{name} requires available credits. Check your provider account balance.",
+        )
     if status == 403:
-        return LLMProviderError("access_denied", f"{name} denied access. Check your API key permissions and model access.")
+        return LLMProviderError(
+            "access_denied", f"{name} denied access. Check your API key permissions and model access.",
+        )
     if status == 429:
-        return LLMProviderError("rate_limited", f"{name}'s rate limit or quota was reached. Wait before retrying or check your provider usage limits.")
+        return LLMProviderError(
+            "rate_limited", f"{name}'s rate limit or quota was reached. "
+            "Wait before retrying or check your provider usage limits.",
+        )
     if status == 408 or isinstance(exc, (groq.APITimeoutError, openai.APITimeoutError)):
         return LLMProviderError("provider_timeout", f"{name} took too long to respond. Please try again.")
     if isinstance(exc, (groq.APIConnectionError, openai.APIConnectionError)):
-        return LLMProviderError("provider_connection", f"Cannot connect to {name}. Check the backend's network connection and try again.")
+        return LLMProviderError(
+            "provider_connection", f"Cannot connect to {name}. Check the backend's network connection and try again.",
+        )
     if status in (400, 404, 422):
-        return LLMProviderError("invalid_model_request", f"{name} rejected the model or request. Check {model} and model availability.")
+        return LLMProviderError(
+            "invalid_model_request", f"{name} rejected the model or request. Check {model} and model availability.",
+        )
     if status is not None and status >= 500:
         return LLMProviderError("provider_unavailable", f"{name} is temporarily unavailable. Please try again shortly.")
     if isinstance(exc, (ValueError, IndexError)):
-        return LLMProviderError("invalid_provider_response", f"{name} returned an empty or unreadable response. Please try again.")
+        return LLMProviderError(
+            "invalid_provider_response", f"{name} returned an empty or unreadable response. Please try again.",
+        )
     return LLMProviderError("provider_error", f"{name} could not generate a response. Please try again.")
 
 
-def _raise_provider_failure(last_error: LLMProviderError | None) -> None:
+def _raise_provider_failure(last_error: LLMProviderError | None) -> Never:
     if last_error is not None:
         raise last_error
     raise LLMProviderError(

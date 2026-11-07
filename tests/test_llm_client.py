@@ -31,20 +31,21 @@ def test_missing_key_has_actionable_message(call):
 
 
 @pytest.mark.parametrize("provider,sdk", [("groq", groq), ("openrouter", openai)])
+@pytest.mark.parametrize("call", [llm_client.call_llm_text, llm_client.call_llm_json])
 @pytest.mark.parametrize("status,code", [
     (401, "invalid_api_key"), (402, "insufficient_credits"), (403, "access_denied"),
     (429, "rate_limited"), (408, "provider_timeout"), (400, "invalid_model_request"),
     (404, "invalid_model_request"), (503, "provider_unavailable"),
 ])
 def test_provider_http_failures_are_actionable_and_do_not_leak_bodies(
-    monkeypatch, caplog, provider, sdk, status, code,
+    monkeypatch, caplog, provider, sdk, call, status, code,
 ):
     raw = "private-patient-details test-key-private"
     request = httpx.Request("POST", "https://provider.invalid/chat")
     error = sdk.APIStatusError(raw, response=httpx.Response(status, request=request), body={"detail": raw})
     install_provider(monkeypatch, provider, Mock(side_effect=error))
     with pytest.raises(llm_client.LLMProviderError) as caught:
-        llm_client.call_llm_text([])
+        call([])
     assert caught.value.code == code
     assert ("Groq" if provider == "groq" else "OpenRouter") in str(caught.value)
     assert raw not in str(caught.value)

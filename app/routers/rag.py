@@ -67,7 +67,10 @@ async def rag_stream(websocket: WebSocket, patient_id: str):
 
     except (LLMProviderError, AnswerCitationError) as exc:
         log.warning("[rag_ws] %s for %s", exc.code, patient_id)
-        await websocket.send_json({"type": "error", "code": exc.code, "message": str(exc)})
+        try:
+            await websocket.send_json({"type": "error", "code": exc.code, "message": str(exc)})
+        except (WebSocketDisconnect, RuntimeError):
+            pass
     except WebSocketDisconnect:
         log.info("[rag_ws] Client disconnected: %s", patient_id)
     except Exception as exc:

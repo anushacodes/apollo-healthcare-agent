@@ -98,7 +98,7 @@ def run_eval(
                 reasoning_effort="low",
             )
         except Exception as exc:
-            log.warning("[eval] Groq tool evaluation failed, trying JSON mode: %s", exc)
+            log.warning("[eval] Groq tool evaluation failed (%s), trying JSON mode", type(exc).__name__)
 
     if result is None and (settings.has_groq or settings.has_openrouter):
         try:

@@ -3,11 +3,13 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.agent.contracts import FollowUpQuestions, RouterDecision
+from app.agent.evidence_context import AnswerCitationError
 from app.agent.rag import nodes
 from app.agent.rag.graph import run_rag_streaming
 from app.agent.seed_patient import get_case
 from app.agent.sqlite_cache import get_answer
 from app.ingestion.chunker import chunk_text
+from app.llm_client import LLMProviderError
 
 
 def test_chunker_is_stable_and_patient_scoped(case_a):
@@ -128,3 +130,22 @@ async def test_generation_failure_does_not_become_answer(monkeypatch, rag_servic
     monkeypatch.setattr(nodes, "_groq_text", fail)
     with pytest.raises(RuntimeError, match="Answer generation failed"):
         _ = [e async for e in run_rag_streaming("demo", {}, "Question?")]
+
+
+@pytest.mark.parametrize("error", [
+    LLMProviderError("rate_limited", "Groq's rate limit was reached. Wait before retrying."),
+    AnswerCitationError("The answer could not be linked to its sources. Please try again."),
+])
+async def test_provider_and_citation_failures_never_emit_or_cache_answer(monkeypatch, rag_services, error):
+    route_to(monkeypatch, "research")
+
+    def fail(**kwargs):
+        raise error
+
+    monkeypatch.setattr(nodes, "_groq_text", fail)
+    events = []
+    with pytest.raises(type(error), match=str(error)):
+        async for event in run_rag_streaming("demo", {}, "Question?"):
+            events.append(event)
+    assert not any(e["type"] == "done" for e in events)
+    assert get_answer(nodes._patient_cache_id("demo", {}), "Question?") is None
