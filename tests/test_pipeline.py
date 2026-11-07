@@ -5,6 +5,7 @@ import pytest
 from app.agent.contracts import FollowUpQuestions, RouterDecision
 from app.agent.rag import nodes
 from app.agent.rag.graph import run_rag_streaming
+from app.agent.seed_patient import get_case
 from app.agent.sqlite_cache import get_answer
 from app.ingestion.chunker import chunk_text
 
@@ -78,6 +79,33 @@ async def test_insufficient_context_refuses_without_eval(monkeypatch, rag_servic
     answer = next(e for e in events if e["type"] == "done")
     assert answer["data"]["is_refusal"] is True
     assert not any(e["node"] == "eval_agent" for e in events)
+
+
+@pytest.mark.parametrize("case_key,lab_value", [
+    ("case_b", "BNP: 1840"),
+    ("case_c", "D-dimer: 4.8"),
+])
+async def test_record_only_question_keeps_labs_without_document_matches(
+    monkeypatch, rag_services, case_key, lab_value,
+):
+    route_to(monkeypatch, "patient_docs")
+    monkeypatch.setattr(nodes, "search_chunks_async", AsyncMock(return_value=[]))
+    prompts = []
+
+    def generate(**kwargs):
+        prompts.append(kwargs["system"])
+        return "Recorded laboratory abnormality [1]."
+
+    monkeypatch.setattr(nodes, "_groq_text", generate)
+    patient = get_case(case_key)
+    events = [e async for e in run_rag_streaming(
+        patient["patient_id"], patient, "Summarise the most recent lab abnormalities.",
+    )]
+    answer = next(e["data"] for e in events if e["type"] == "done")
+    assert answer["is_refusal"] is False
+    assert answer["citations"][0]["source_doc"] == "patient_record"
+    assert lab_value in prompts[0]
+    assert any(e["type"] == "patch_eval" for e in events)
 
 
 @pytest.mark.parametrize("scores", [

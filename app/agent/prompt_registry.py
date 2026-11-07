@@ -12,17 +12,18 @@ interaction) have no equivalent automated quality signal yet.
 """
 
 
-from app.agent.rag.prompts import _GENERATOR_PROMPT
+from app.agent.rag.prompts import _GENERATOR_PROMPT, _GENERATOR_PROMPT_V2
 from app.agent.sqlite_cache import get_prompt_version_stats, record_prompt_score
 
 PROMPT_VERSIONS: dict[str, dict[str, str]] = {
     "generator": {
         "v1": _GENERATOR_PROMPT,
+        "v2": _GENERATOR_PROMPT_V2,
     },
 }
 
 ACTIVE_VERSION: dict[str, str] = {
-    "generator": "v1",
+    "generator": "v2",
 }
 
 

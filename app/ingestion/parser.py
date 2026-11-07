@@ -8,7 +8,7 @@ log = logging.getLogger(__name__)
 
 # Resolve only the selected extractor: plain text must not import Torch/Docling.
 _HANDLERS = {
-    ".pdf": ("pdf_extractor", "parse_pdf"),
+    ".pdf": ("text_pdf_extractor", "parse_pdf"),
     ".docx": ("pdf_extractor", "parse_pdf"),
     ".doc": ("pdf_extractor", "parse_pdf"),
     ".jpg": ("image_extractor", "parse_image"),

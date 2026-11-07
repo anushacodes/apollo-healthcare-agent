@@ -2,6 +2,7 @@ import logging
 from typing import Any
 
 from app.agent.contracts import EvalScores
+from app.agent.evidence_context import format_evidence as _format_chunks_for_eval
 from app.config import settings
 from app.llm_client import call_llm_json, get_structured_groq_client
 
@@ -44,14 +45,6 @@ Instructions:
 _FAITHFULNESS_GATE = 0.70
 
 
-def _format_chunks_for_eval(chunks: list[dict]) -> str:
-    lines = []
-    for i, c in enumerate(chunks, 1):
-        source = c.get("source_doc", c.get("title", "unknown"))
-        lines.append(f"[{i}] ({source})\n{c.get('text', '')[:900]}")
-    return "\n\n".join(lines)
-
-
 def run_eval(
     question: str,
     answer: str,
@@ -85,7 +78,7 @@ def run_eval(
     prompt = _EVAL_PROMPT.format(
         chunks=chunk_text,
         question=question,
-        answer=answer[:2000],
+        answer=answer,
     )
     messages = [
         {"role": "system", "content": _EVAL_SYSTEM},
@@ -118,7 +111,7 @@ def run_eval(
                 faithfulness=0.0,
                 context_relevance=0.0,
                 answer_completeness=0.0,
-                evaluation_notes=f"Eval agent unavailable: {exc}",
+                evaluation_notes="Eval agent unavailable. This answer has not been verified against its sources.",
             ).model_dump()
 
     if result is None:

@@ -160,6 +160,7 @@ def extract_fields(text: str) -> dict:
                 add("document_date", {"value": parsed}, line)
 
     section, historical_meds, lab_table = "", False, False
+    layout_columns = []
     flag_map = {"H": "high", "L": "low", "HH": "critical_high", "LL": "critical_low", "N": "normal"}
     for line in lines:
         raw = line.group()
@@ -183,6 +184,22 @@ def extract_fields(text: str) -> dict:
                         warnings.append("Date of birth needs manual confirmation; no date was inferred.")
                 if result:
                     add(kind, {"value": result}, line)
+        # Selectable-text PDFs retain visual column gaps rather than Markdown pipes.
+        # Only enter this mode after recognizing a complete laboratory header.
+        layout_matches = list(re.finditer(r"\S(?:.*?\S)?(?=\s{2,}|$)", raw))
+        layout_cells = [match.group() for match in layout_matches]
+        if len(layout_cells) == 5 and layout_cells[0].lower() in ("test", "test name", "analyte") and layout_cells[1].lower() in ("result", "value") and layout_cells[2].lower() in ("unit", "units") and layout_cells[4].lower() == "flag":
+            layout_columns = [match.start() for match in layout_matches]
+            continue
+        if layout_columns:
+            if 2 <= len(layout_cells) <= 5:
+                cells = [raw[start:end].strip() for start, end in zip(layout_columns, [*layout_columns[1:], len(raw)], strict=True)]
+                if cells[0] and cells[1]:
+                    add("lab", {"test_name": cells[0], "value": cells[1], "unit": "" if cells[2] == "—" else cells[2],
+                                "reference_range": cells[3], "flag": flag_map.get(cells[4].upper(), "not_recorded"),
+                                "date": sample_date or document_date}, line)
+                continue
+            layout_columns = []
         if value.startswith("|"):
             cells = [cell.strip().strip("*") for cell in value.strip("|").split("|")]
             if len(cells) >= 5 and cells[0].lower() in ("test", "test name", "parameter", "analyte", "indicator") and cells[1].lower() in ("result", "value"):
@@ -205,11 +222,11 @@ def extract_fields(text: str) -> dict:
                         data["status"] = "historical"
                     add("diagnosis", {**data, "date": document_date}, line)
         medication = re.match(r"^Medication:\s*(.+)", item, re.I)
-        if medication or (bullet and section in ("medications", "current medications", "discharge medications", "medication history")):
+        if medication or section in ("medications", "current medications", "discharge medications", "medication history"):
             data = _medication(medication.group(1) if medication else item, historical_meds)
             if data:
                 add("medication", {**data, "date": document_date}, line)
-            else:
+            elif medication or bullet:
                 warnings.append("A medication line could not be parsed safely; inspect the original document.")
         allergy = re.match(r"^Allerg(?:y|ies):\s*(.+)", item, re.I)
         if allergy or (bullet and section == "allergies"):

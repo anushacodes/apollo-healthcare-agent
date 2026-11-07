@@ -6,6 +6,8 @@ from pydantic import BaseModel
 
 from app.agent.contracts import FollowUpQuestions, RouterDecision
 from app.agent.eval_agent import run_eval
+from app.agent.evidence_context import AnswerCitationError, citation_refs
+from app.agent.evidence_context import format_evidence as _format_chunks
 from app.agent.prompt_registry import get_active_prompt, record_eval
 from app.agent.rag.prompts import _FOLLOW_UP_PROMPT, _ROUTER_PROMPT
 from app.agent.rag.state import RAGState
@@ -19,6 +21,7 @@ from app.config import settings
 from app.ingestion.chunker import chunk_text
 from app.ingestion.embedder import embed_chunks_async, search_chunks_async
 from app.llm_client import (
+    LLMProviderError,
     call_llm_json,
     call_llm_text,
     get_structured_groq_client,
@@ -79,18 +82,6 @@ def _groq_text(system: str, user: str, max_tokens: int = 2048) -> str:
 
 # ── Formatting helpers ────────────────────────────────────────────────────────
 
-def _format_chunks(chunks: list[dict]) -> str:
-    lines = []
-    for i, c in enumerate(chunks, 1):
-        source = c.get("source_doc") or c.get("title") or "unknown"
-        # Structured records contain several sections; a short excerpt can cut
-        # off the labs and medications that are absent from document retrieval.
-        limit = 12000 if c.get("doc_type") == "structured_summary" else 900
-        text = c.get("text", "")[:limit]
-        lines.append(f"[{i}] Source: {source}\n{text}")
-    return "\n\n---\n\n".join(lines)
-
-
 def _ev(node: str, etype: str, message: str, data: dict | None = None) -> dict:
     return {"node": node, "type": etype, "message": message, "data": data or {}}
 
@@ -98,6 +89,7 @@ def _ev(node: str, etype: str, message: str, data: dict | None = None) -> dict:
 def _patient_cache_id(patient_id: str, patient_data: dict) -> str:
     fingerprint = hash_payload(
         {
+            "answer_contract": "cited-evidence-v2",
             "patient": patient_data.get("patient", {}),
             "summary": patient_data.get("summary", {}),
             "source_documents": patient_data.get("source_documents", {}),
@@ -475,22 +467,30 @@ def generator_node(state: RAGState) -> dict:
     thinking = _ev("generator", "thinking", f"Generating grounded response from {len(chunks)} chunks...")
     prompt_version, prompt_template = get_active_prompt("generator")
 
-    answer = ""
+    system = prompt_template.format(chunks=_format_chunks(chunks), question=state.question)
     try:
-        answer = _groq_text(
-            system=prompt_template.format(
-                chunks=_format_chunks(chunks),
-                question=state.question,
-            ),
-            user=state.question,
-        )
+        answer = _groq_text(system=system, user=state.question)
+        try:
+            refs = citation_refs(answer, len(chunks))
+        except AnswerCitationError:
+            # Ask for one fresh, cited answer. Never assign sources to uncited
+            # claims ourselves or display a reference to a nonexistent source.
+            answer = _groq_text(
+                system=system,
+                user=(f"{state.question}\n\nAnswer using inline [n] references to the numbered sources. "
+                      "Use only the source numbers provided; cite each factual statement. "
+                      "Your previous response had missing or invalid source references."),
+            )
+            refs = citation_refs(answer, len(chunks))
+    except (LLMProviderError, AnswerCitationError):
+        raise
     except Exception as exc:
-        log.error("[rag] Generator failed: %s", exc)
+        log.error("[rag] Generator failed (%s)", type(exc).__name__)
         raise RuntimeError("Answer generation failed. Check the configured LLM provider and try again.") from exc
 
     citations = []
     for i, c in enumerate(chunks, 1):
-        if f"[{i}]" in answer:
+        if i in refs:
             citations.append({
                 "ref":        i,
                 "source_doc": c.get("source_doc") or c.get("title") or "unknown",

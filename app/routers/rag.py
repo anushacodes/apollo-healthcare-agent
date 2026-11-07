@@ -187,6 +187,8 @@ async def ingest_document(patient_id: str, file: UploadFile = File(...)):
                 "chunks_embedded": upserted, "review_run": review_run}
     except HTTPException:
         raise
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception as exc:
         log.exception("[rag] Document ingestion failed")
         raise HTTPException(status_code=500, detail="Document ingestion failed") from exc
