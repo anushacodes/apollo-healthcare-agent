@@ -215,6 +215,7 @@ app/frontend-src/node_modules/
 app/frontend_dist/
 
 .claude/skills/
+.agents/skills/
 skills-lock.json
 
 # Runtime records and compiler output

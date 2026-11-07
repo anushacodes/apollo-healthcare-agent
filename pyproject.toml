@@ -9,6 +9,7 @@ dependencies = [
     "fastapi>=0.111.0",
     "uvicorn[standard]>=0.30.0",
     "python-multipart>=0.0.9",
+    "pypdf>=6.0.0",
     # Config & validation
     "pydantic>=2.7.0",
     "pydantic-settings>=2.3.0",
@@ -31,7 +32,7 @@ dependencies = [
     "fastmcp>=4.0.3",
 ]
 
-# Optional local model stack; plain-text ingestion and sparse retrieval work without it.
+# Optional local model stack; text/PDF text-layer ingestion and sparse retrieval work without it.
 [project.optional-dependencies]
 inference = [
     "docling>=2.0.0",

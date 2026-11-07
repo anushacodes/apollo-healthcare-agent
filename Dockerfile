@@ -15,7 +15,6 @@ COPY pyproject.toml README.md ./
 COPY app ./app
 RUN pip install --no-cache-dir '.[inference]'
 COPY --from=frontend /frontend_dist ./app/frontend_dist
-COPY scripts ./scripts
 COPY data ./data
 COPY knowledge_graph ./knowledge_graph
 RUN mkdir -p /app/data/patients /app/data/.cache
