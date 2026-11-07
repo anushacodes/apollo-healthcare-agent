@@ -19,7 +19,7 @@ A multi-agent clinical intelligence workspace for exploring patient records, rev
 - **Human review** — saved drafts with highlighted source evidence, accept/edit/reject decisions, clarification requests, and a gated final output.
 - **Evidence-grounded answers** — patient records and clinical guidelines retrieved with SQLite FTS5 and optional Qdrant vectors.
 - **Live feedback** — answers stream with citations, followed by source-review scores and suggested follow-up questions.
-- **Document retrieval** — text ingestion by default; optional PDF, Word, and image extraction with local models.
+- **Document retrieval** — plain text and selectable-text PDFs by default; optional scanned PDF, Word, and image extraction with local models.
 - **Reviewed extraction** — English document fields with exact source passages, structured corrections, and approval before they enter the patient record.
 
 <details>
@@ -91,7 +91,7 @@ flowchart LR
 
 Approved fields appear in **Overview → Reviewed document fields**, with their source, reviewer, recorded date, and status. Original proposals and corrections remain in the audit history. Historical prescriptions, held medications, and negated diagnoses retain those distinctions; imports do not overwrite the current medication or diagnosis lists. Reimporting the same document and approved values does not duplicate record entries.
 
-The extractor uses conservative English rules for explicit labels, medication lists with doses, and five-column Markdown laboratory tables. It requires no generation key. Ambiguous numeric dates are flagged for confirmation, missing doses are not inferred, and unlabeled narrative may produce no fields. Documents support up to 100,000 characters per extraction; PDF, Word, and image parsing still require the optional local model stack. Uploaded text remains available to retrieval before its structured proposals are approved.
+The extractor uses conservative English rules for explicit labels, medication lists with doses, and five-column laboratory tables in Markdown or aligned PDF text. It requires no generation key. Ambiguous numeric dates are flagged for confirmation, missing doses are not inferred, and unlabeled narrative may produce no fields. Documents support up to 100,000 characters per extraction. Selectable-text PDFs use the lightweight pypdf parser; scanned PDFs, Word, and images require the optional local model stack. Uploaded text remains available to retrieval before its structured proposals are approved.
 
 ### Evidence-grounded question answering
 
@@ -148,6 +148,21 @@ Open **[localhost:8000](http://localhost:8000)**. Explore **Overview**, run **An
 No key is needed to browse records, ingest text, use sparse retrieval, or try the human-review workflow with calculator and heuristic fallbacks. Generated answers and model-based evaluation require Groq or OpenRouter.
 
 <details>
+<summary>Try the connected document workflow</summary>
+
+Select **Robert Chen**, then upload these actual PDF files in **Documents → Add document**, in order:
+
+1. [Clinic follow-up](data/demo_documents/robert_chen/01_clinic_follow_up.pdf) — patient details, diagnoses, a negated finding, and a recorded follow-up action.
+2. [Medication review](data/demo_documents/robert_chen/02_medication_review.pdf) — structured corrections, metformin's held status, and aspirin allergy evidence.
+3. [Laboratory report](data/demo_documents/robert_chen/03_laboratory_report.pdf) — values, units, recorded flags, and distinct sample/report dates.
+
+Inspect source passages, review every field, and select **Finalize and save fields**. Show the approved entries in **Overview**, reload to demonstrate persistence, then run **Analysis**. With a generation key configured, ask “Which medication is held?” or “What reaction to aspirin is recorded?” and inspect citations.
+
+Matching text exports are available alongside the PDFs. All three documents contain clearly labeled synthetic records; no real patient data is included. The PDFs work with the default install and need no OCR model download.
+
+</details>
+
+<details>
 <summary>Optional: dense retrieval and document models</summary>
 
 ```bash
@@ -156,7 +171,7 @@ docker compose up -d qdrant
 uv run --frozen --extra inference uvicorn app.main:app --reload --port 8000
 ```
 
-The `inference` extra installs Docling and sentence-transformers. It enables PDF/Word/image extraction and dense embeddings using `BAAI/bge-small-en-v1.5`. Models download on first use. SQLite retrieval continues to work when Qdrant is unavailable.
+The `inference` extra installs Docling and sentence-transformers. It enables scanned PDF/Word/image extraction and dense embeddings using `BAAI/bge-small-en-v1.5`. Models download on first use. SQLite retrieval continues to work when Qdrant is unavailable.
 
 </details>
 
@@ -185,7 +200,7 @@ For frontend hot reload, keep the API running and run `npm --prefix app/frontend
 | Model providers | Groq, OpenRouter; Gemini for summary fallback |
 | Retrieval and caching | SQLite FTS5, Qdrant, reciprocal rank fusion |
 | Guideline tools | FastMCP, local curated corpus |
-| Document processing | Docling, sentence-transformers (`inference` extra) |
+| Document processing | pypdf; Docling and sentence-transformers (`inference` extra) |
 | Web search | Tavily, DuckDuckGo fallback |
 | Tooling | uv, Ruff, pytest, Oxlint, GitHub Actions, Docker Compose |
 
@@ -226,12 +241,6 @@ CI checks Python lint, offline tests, and frontend lint/typecheck/build. Tests i
 The offline evaluation harness checks 10 labeled synthetic cases for assertion handling, exact evidence offsets, conflicting records, missing inputs, unsupported drafts, and insufficient-context refusal. This is a policy regression set, not an LLM-quality or clinical validation benchmark.
 
 A separate extraction regression set contains 10 hand-labeled synthetic English documents covering structured fields, assertion status, held and historical medications, dates, duplicate proposals, missing doses, and source offsets. Tests also check known results from the bundled Case A laboratory report. These fixtures do not establish accuracy on arbitrary clinical documents.
-
-## Project status
-
-Apollo is a portfolio project using synthetic patient records. It is not clinically validated. Local reviewer sessions do not provide verified authentication, role-based access, or patient authorization. The workspace currently browses three bundled cases; uploaded document namespaces are available through the API and do not create new patients in the selector.
-
-Patient management, application tracing, production deployment, and live provider/model/container validation remain open.
 
 ---
 
