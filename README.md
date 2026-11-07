@@ -10,12 +10,13 @@ A multi-agent clinical intelligence workspace for exploring patient records, rev
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
 ![LangGraph](https://img.shields.io/badge/Agents-LangGraph-1C3C3C)
 
-[Architecture](#architecture) · [Quick start](#quick-start) · [Tech stack](#tech-stack) · [Development guide](docs/DEVELOPMENT.md) · [API reference](docs/API.md)
+[Architecture](#architecture) · [Quick start](#quick-start) · [Tech stack](#tech-stack) · [Development checks](#development-checks)
 
 ## What Apollo does
 
 - **Patient overview** — diagnoses, medications, laboratory results, and key concerns in one readable record.
 - **Clinical analysis** — a LangGraph workflow combines medication checks, condition knowledge, clinical calculators, and summarization.
+- **Human review** — saved drafts with highlighted source evidence, accept/edit/reject decisions, clarification requests, and a gated final output.
 - **Evidence-grounded answers** — patient records and clinical guidelines retrieved with SQLite FTS5 and optional Qdrant vectors.
 - **Live feedback** — answers stream with citations, followed by source-review scores and suggested follow-up questions.
 - **Document retrieval** — text ingestion by default; optional PDF, Word, and image extraction with local models.
@@ -35,9 +36,7 @@ A multi-agent clinical intelligence workspace for exploring patient records, rev
 
 The React workspace communicates with FastAPI over REST and WebSockets. LangGraph runs two workflows: clinical analysis and question answering. Both use shared provider clients and local clinical context; question answering also retrieves patient records and guidelines.
 
-SQLite stores sparse indexes and caches. Qdrant adds optional dense retrieval. Guideline search runs through an in-memory MCP client/server connection, with the same tool available to external clients at `/mcp/`. Gemini¹ is used for summary fallback only.
-
-[Explorable diagram](docs/diagrams/system.html) · [Diagram source and validation](docs/diagrams/README.md)
+SQLite stores sparse indexes, caches, reviewer sessions, analysis drafts, decisions, and a per-analysis hash-chained audit trail. Qdrant adds optional dense retrieval. Guideline search runs through an in-memory MCP client/server connection, with the same tool available to external clients at `/mcp/`. Gemini¹ is used for summary fallback only.
 
 ### Clinical analysis
 
@@ -52,7 +51,28 @@ flowchart LR
     class plan,calculate,medications,diagnose,summarize agent
 ```
 
-The diagnostics graph is sequential. Structured patient fields supply calculator inputs for ASCVD, Wells DVT, and CHA₂DS₂-VASc; an LLM can augment the plan. Calculator and agent findings feed downstream reasoning and the final summary. Every stage emits an audit event.
+The diagnostics graph is sequential. Structured patient fields supply calculator inputs for ASCVD, Wells DVT, and CHA₂DS₂-VASc; an LLM can augment the plan. Calculator and agent findings feed downstream reasoning and the final summary. Every stage emits an execution event. A wrapper then saves the analysis as a reviewable draft; the LangGraph itself does not pause for human approval.
+
+### Human-in-the-loop review
+
+```mermaid
+flowchart LR
+    draft["Saved draft"] --> review["Inspect evidence<br/>Accept · Edit · Reject"]
+    review -->|Missing or conflicting information| clarification["Request clarification"]
+    clarification -->|Respond or supply calculator inputs| review
+    review -->|Every finding decided<br/>No pending clarifications| finalized["Finalize review"]
+    finalized --> output["Accepted findings<br/>and reviewer corrections"]
+```
+
+In **Analysis**, run a case, enter a reviewer name, and inspect each finding's linked source passages. Findings distinguish **documented**, **suspected**, **historical**, **negated**, **conflicting**, **AI suggested**, and **calculated** information. The matcher uses exact text and simple assertion rules; a linked passage is provenance, not proof that a generated interpretation is correct.
+
+Every decision requires a reason and records the reviewer session, original suggestion, correction, and timestamp. Missing or conflicting evidence blocks unchanged acceptance. Reviewers can instead edit with a reason, reject, or ask for clarification. Clarification responses are marked **reviewer supplied** and return the finding to pending review.
+
+Missing calculator inputs are collected explicitly or the calculator can be skipped with a reason. Saving inputs reruns that calculator and refreshes the diagnostic and summary drafts. Those dependent findings require fresh review. Saved analyses and decisions survive reloads and server restarts.
+
+The API rejects stale versions and prevents finalization until every finding has a decision and all clarifications are resolved or skipped. The finalized endpoint returns only accepted findings and reviewer corrections; rejected findings remain in history. Finalized reviews are immutable. **Ask answers remain immediate, model-evaluated responses and are outside this human-review gate.**
+
+Reviewer names are self-declared local identities, carried in server-issued HttpOnly cookie sessions. They are **not verified accounts or clinical sign-off**. The audit hash chain detects edits against the retained chain; it is not an externally anchored, tamper-proof log.
 
 ### Evidence-grounded question answering
 
@@ -64,7 +84,7 @@ flowchart LR
         router --> sources["Patient records and/or<br/>guidelines via MCP"]
         sources --> context["Assemble retrieved context"]
     end
-    subgraph response["Answer and review"]
+    subgraph response["Answer and evaluation"]
         direction TB
         sufficient{"Enough context?"} -->|Yes| generate["Answer + citations"]
         sufficient -->|No| refusal["Insufficient-context message"]
@@ -81,7 +101,7 @@ flowchart LR
     class refusal stop
 ```
 
-The router selects patient records, guidelines, or both; the diagram groups those retrieval branches for readability. Retrieval fuses dense and sparse results using reciprocal rank fusion; web search fills gaps when research evidence is sparse. The sufficiency check currently uses chunk count. [View the detailed retrieval flow](docs/diagrams/README.md#detailed-retrieval-flow).
+The router selects patient records, guidelines, or both; the diagram groups those retrieval branches for readability. Retrieval fuses dense and sparse results using reciprocal rank fusion; web search fills gaps when research evidence is sparse. The sufficiency check currently uses chunk count.
 
 The answer appears before evaluation finishes. Subsequent events add review scores, warnings, and follow-up questions. Evaluation annotates the response; it does not block its initial display. Eligible answers are cached for seven days; low-faithfulness, hallucination-flagged, or unevaluated answers are not cached. Indexing a document invalidates that patient's answer cache.
 
@@ -98,21 +118,21 @@ cp .env.example .env
 Add a **Groq** or **OpenRouter** API key to `.env`, then install and run:
 
 ```bash
-uv sync --frozen --group dev
-npm --prefix app/frontend-src ci
+uv sync --group dev
+npm --prefix app/frontend-src install
 npm --prefix app/frontend-src run build
 uv run --frozen uvicorn app.main:app --reload --port 8000
 ```
 
 Open **[localhost:8000](http://localhost:8000)**. Explore **Overview**, run **Analysis**, ask a question in **Ask**, or read source records in **Documents**.
 
-No key is needed to browse records, ingest text, use sparse retrieval, or run calculator and heuristic fallbacks. Generated answers and model-based evaluation require Groq or OpenRouter.
+No key is needed to browse records, ingest text, use sparse retrieval, or try the human-review workflow with calculator and heuristic fallbacks. Generated answers and model-based evaluation require Groq or OpenRouter.
 
 <details>
 <summary>Optional: dense retrieval and document models</summary>
 
 ```bash
-uv sync --frozen --group dev --extra inference
+uv sync --group dev --extra inference
 docker compose up -d qdrant
 uv run --frozen --extra inference uvicorn app.main:app --reload --port 8000
 ```
@@ -134,7 +154,7 @@ Compose starts the API and Qdrant. The image includes the frontend build and ful
 
 </details>
 
-See the [development guide](docs/DEVELOPMENT.md) for hot reload, configuration, model setup, and troubleshooting notes.
+For frontend hot reload, keep the API running and run `npm --prefix app/frontend-src run dev` in a second terminal. Vite proxies API requests and WebSockets to port 8000. Explore the running API at [localhost:8000/docs](http://localhost:8000/docs).
 
 ## Tech stack
 
@@ -160,14 +180,15 @@ app/
 │   └── …                # Specialist agents, calculators, prompts, caches
 ├── ingestion/           # Parsing, chunking, and hybrid search
 ├── mcp/                 # Guideline search server and client
+├── review/              # Evidence, review state, decisions, and clarifications
 ├── routers/             # REST and WebSocket endpoints
 └── frontend-src/        # React workspace
 data/
 ├── seed/                # Patient source records
-└── corpus/              # Curated guideline documents
+├── corpus/              # Curated guideline documents
+└── evaluation/          # Labeled synthetic review-policy cases
 knowledge_graph/         # Local condition knowledge blocks
 tests/                   # Offline regression tests
-docs/                    # API, development, diagrams, and roadmap
 ```
 
 ## Development checks
@@ -177,16 +198,19 @@ uv run --frozen ruff check .
 uv run --frozen pytest -q
 npm --prefix app/frontend-src run lint
 npm --prefix app/frontend-src run build
+uv run --frozen python -m app.evaluation
 ```
 
-CI checks Python lint, offline tests, and frontend lint/typecheck/build. Tests isolate SQLite, disable credentials and network access, and mock external services. They cover graph routing, streaming, ingestion, evaluation, caching, patient isolation, and MCP retrieval.
+CI checks Python lint, offline tests, and frontend lint/typecheck/build. Tests isolate SQLite, disable credentials and network access, and mock external services. They cover graph routing, streaming, ingestion, evaluation, caching, patient isolation, MCP retrieval, review state transitions, stale edits, reviewer-session enforcement, clarification, and audit integrity.
+
+The offline evaluation harness checks 10 labeled synthetic cases for assertion handling, exact evidence offsets, conflicting records, missing inputs, unsupported drafts, and insufficient-context refusal. This is a policy regression set, not an LLM-quality or clinical validation benchmark.
 
 ## Project status
 
-Apollo is a portfolio project using synthetic patient records. It is not clinically validated and has no authentication or patient authorization. The workspace currently browses three bundled cases; uploaded document namespaces are available through the API and do not create new patients in the selector.
+Apollo is a portfolio project using synthetic patient records. It is not clinically validated. Local reviewer sessions do not provide verified authentication, role-based access, or patient authorization. The workspace currently browses three bundled cases; uploaded document namespaces are available through the API and do not create new patients in the selector.
 
-Patient management, application tracing, production deployment, and live provider/model/container validation remain open. See the [completion audit and roadmap](docs/TASKS.md).
+Patient management, application tracing, production deployment, and live provider/model/container validation remain open.
 
 ---
 
-README structure inspired by [Healthcare Voice Agent](https://github.com/santiago68310/Healthcare-voice-agent). Architecture diagrams describe Apollo's own implementation.
+README structure inspired by [Healthcare Voice Agent](https://github.com/santiago68310/Healthcare-voice-agent). Human-review design also draws on [Agentic Medical Coding AI](https://github.com/nipa-analytics/agentic-medical-coding-ai). Architecture diagrams describe Apollo's own implementation.

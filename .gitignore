@@ -221,5 +221,5 @@ skills-lock.json
 data/patients/
 *.tsbuildinfo
 
-# Local architecture browser-review evidence (portable diagram sources are tracked)
-docs/diagrams/*.visual-check.*
+# Local development documentation
+/docs/
