@@ -1,9 +1,10 @@
 import logging
 from contextlib import AsyncExitStack, asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
@@ -12,7 +13,7 @@ from app.middleware import RequestContextMiddleware
 from app.routers import agent as agent_router
 from app.routers import kg as kg_router
 from app.routers import rag as rag_router
-from app.routers import summarize
+from app.routers import review, summarize
 
 logging.basicConfig(level=settings.log_level)
 log = logging.getLogger(__name__)
@@ -45,8 +46,8 @@ async def _startup(app: FastAPI) -> None:
         import asyncio
 
         from app.ingestion.embedder import _get_client, _get_encoder
-        await asyncio.to_thread(_get_encoder)
-        await asyncio.to_thread(_get_client)
+        if await asyncio.to_thread(_get_client) is not None:
+            await asyncio.to_thread(_get_encoder)
         log.info("[startup] Embedding model and Qdrant client pre-loaded.")
     except Exception as exc:
         log.warning("[startup] Embedding pre-load failed (non-fatal): %s", exc)
@@ -77,6 +78,7 @@ app.add_middleware(
 app.add_middleware(RequestContextMiddleware)
 
 app.include_router(summarize.router)
+app.include_router(review.router)
 app.include_router(agent_router.router)
 app.include_router(kg_router.router)
 app.include_router(rag_router.router)
@@ -88,7 +90,22 @@ async def legacy_frontend_redirect():
     return RedirectResponse(url="/", status_code=307)
 
 
+@app.get("/api/health", tags=["health"])
+async def health():
+    return {"status": "ok", "llm_provider": settings.active_llm_provider}
+
+
 app.mount("/mcp", mcp_app)
-app.mount("/", StaticFiles(directory="app/frontend_dist", html=True), name="frontend")
+frontend_dir = Path(__file__).parent / "frontend_dist"
+if frontend_dir.is_dir():
+    app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
+else:
+    @app.get("/", include_in_schema=False)
+    async def frontend_not_built():
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "Frontend not built. Run npm ci && npm run build in app/frontend-src, "
+                     "then restart the API; or use the Vite development server. API docs: /docs"},
+        )
 
 log.info("Apollo API started")
