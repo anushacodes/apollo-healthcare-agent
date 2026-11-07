@@ -5,10 +5,12 @@ import logging
 from fastapi import APIRouter, File, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
+from app.agent.evidence_context import AnswerCitationError
 from app.agent.rag.graph import run_rag_streaming
 from app.agent.seed_patient import get_case
 from app.agent.sqlite_cache import hash_text, mark_document_indexed
 from app.config import settings
+from app.llm_client import LLMProviderError
 from app.review.extraction import create_extraction, with_reviewed_fields
 
 _UPLOAD_CHUNK_SIZE = 1024 * 1024
@@ -63,6 +65,9 @@ async def rag_stream(websocket: WebSocket, patient_id: str):
         async for event in run_rag_streaming(patient_id, patient_data, question):
             await websocket.send_json(event)
 
+    except (LLMProviderError, AnswerCitationError) as exc:
+        log.warning("[rag_ws] %s for %s", exc.code, patient_id)
+        await websocket.send_json({"type": "error", "code": exc.code, "message": str(exc)})
     except WebSocketDisconnect:
         log.info("[rag_ws] Client disconnected: %s", patient_id)
     except Exception as exc:

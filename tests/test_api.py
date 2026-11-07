@@ -72,6 +72,27 @@ def test_rag_completion_closes_socket(client, monkeypatch):
             ws.receive_json()
 
 
+@pytest.mark.parametrize("code,message", [
+    ("invalid_api_key", "Groq rejected its API key. Check GROQ_API_KEY in .env and restart the backend."),
+    ("rate_limited", "Groq's rate limit or quota was reached. Wait before retrying."),
+    ("provider_timeout", "Groq took too long to respond. Please try again."),
+])
+def test_rag_provider_errors_reach_workspace_and_close_socket(client, monkeypatch, code, message):
+    from app.llm_client import LLMProviderError
+    from app.routers import rag
+
+    async def stream(*args):
+        raise LLMProviderError(code, message)
+        yield  # Mark this as the async generator used by the real stream.
+
+    monkeypatch.setattr(rag, "run_rag_streaming", stream)
+    with client.websocket_connect("/api/rag/stream/demo") as ws:
+        ws.send_json({"question": "Summarise labs"})
+        assert ws.receive_json() == {"type": "error", "code": code, "message": message}
+        with pytest.raises(WebSocketDisconnect):
+            ws.receive_json()
+
+
 def test_summary_passes_force_regenerate(client, case_a, monkeypatch):
     from app.agent.summarizer import run_summarizer
     from app.routers import summarize
