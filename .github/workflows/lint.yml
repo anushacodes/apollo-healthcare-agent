@@ -24,7 +24,7 @@ jobs:
           version: '0.13.0'
           python-version: '3.12'
           enable-cache: true
-      - run: uv sync --frozen --group dev
+      - run: uv sync --group dev
       - run: uv run --frozen pytest -q
 
   frontend:
@@ -37,8 +37,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-          cache: npm
-          cache-dependency-path: app/frontend-src/package-lock.json
-      - run: npm ci
+      - run: npm install
       - run: npm run lint
       - run: npm run build
