@@ -285,6 +285,10 @@ def _build_patient_summary_chunk(patient_data: dict, patient_id: str) -> dict | 
     if allergies:
         lines.append(f"\nALLERGIES: {', '.join(str(a) for a in allergies)}")
 
+    from app.review.extraction import reviewed_context
+
+    if reviewed := reviewed_context(s.get("reviewed_fields", [])):
+        lines.append(reviewed)
     text = "\n".join(lines).strip()
     if not text:
         return None

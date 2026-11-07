@@ -64,6 +64,10 @@ def init_db() -> None:
                     token_hash TEXT PRIMARY KEY, reviewer_id TEXT NOT NULL,
                     name TEXT NOT NULL, expires_at REAL NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS reviewed_document_fields (
+                    id TEXT PRIMARY KEY, patient_id TEXT NOT NULL, state JSON NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS reviewed_fields_patient ON reviewed_document_fields(patient_id);
                 CREATE TABLE IF NOT EXISTS rag_answer_cache (
                     patient_id TEXT,
                     question TEXT,

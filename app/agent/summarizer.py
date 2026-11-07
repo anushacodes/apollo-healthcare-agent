@@ -109,6 +109,11 @@ def build_context(patient_data: dict) -> str:
         if patient_data.get(key):
             lines.append(f"{label}:\n{json.dumps(patient_data[key], default=str)}\n")
 
+    from app.review.extraction import reviewed_context
+
+    if reviewed := reviewed_context(s.get("reviewed_fields", [])):
+        lines.append(reviewed)
+
     return "\n".join(lines)
 
 def _call_groq(context: str) -> dict[str, Any]:

@@ -23,6 +23,7 @@ class DecisionRequest(StrictModel):
     action: Literal["accepted", "edited", "rejected", "clarification_requested"]
     reason: str = Field(min_length=3, max_length=2000)
     edited_text: str | None = Field(default=None, max_length=10000)
+    edited_data: dict[str, str] | None = None
 
     @field_validator("reason")
     @classmethod

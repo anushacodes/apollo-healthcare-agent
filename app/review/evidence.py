@@ -27,7 +27,7 @@ def record_sources(patient: dict) -> dict[str, dict]:
         for name, text in patient.get("source_documents", {}).items() if isinstance(text, str) and text
     }
     summary = patient.get("summary", {})
-    for section in ("diagnoses", "medications", "lab_results", "clinical_flags"):
+    for section in ("diagnoses", "medications", "lab_results", "clinical_flags", "reviewed_fields"):
         for i, item in enumerate(summary.get(section, [])):
             source_id = f"record/{section}/{i}"
             sources[source_id] = {

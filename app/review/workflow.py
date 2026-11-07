@@ -85,6 +85,9 @@ def create_draft(patient: dict, snapshot: dict) -> dict:
 
 
 async def run_reviewable_analysis(patient_data: dict):
+    from app.review.extraction import with_reviewed_fields
+
+    patient_data = await asyncio.to_thread(with_reviewed_fields, patient_data)
     snapshot = {}
     async for event in run_graph_streaming(patient_data):
         snapshot.update({key: value for key, value in event.items() if key not in ("node", "audit_entry")})

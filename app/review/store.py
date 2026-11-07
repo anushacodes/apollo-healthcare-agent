@@ -25,9 +25,9 @@ def _append_event(conn, run: dict, event: str, reviewer: dict | None, details: d
                  (run["id"], json.dumps(payload), previous, digest))
 
 
-def create_run(patient, snapshot, sources, findings, clarifications) -> dict:
+def create_run(patient, snapshot, sources, findings, clarifications, *, kind="analysis") -> dict:
     run = {"id": str(uuid.uuid4()), "patient_id": patient.get("patient_id", "unknown"),
-           "created_at": now(), "version": 1, "status": "needs_clarification" if clarifications else "draft",
+           "created_at": now(), "kind": kind, "version": 1, "status": "needs_clarification" if clarifications else "draft",
            "patient_data": patient, "original_analysis": copy.deepcopy(snapshot), "analysis": snapshot,
            "sources": sources, "findings": findings, "clarifications": clarifications}
     with _get_conn() as conn:
@@ -54,9 +54,9 @@ def get_run(run_id: str, *, internal: bool = False) -> dict:
     return run if internal else public_run(run)
 
 
-def list_runs(patient_id: str) -> list[dict]:
+def list_runs(patient_id: str, kind: str = "analysis") -> list[dict]:
     rows = _get_conn().execute(
-        "SELECT state FROM review_runs WHERE patient_id = ? ORDER BY created_at DESC LIMIT 50", (patient_id,),
+        "SELECT state FROM review_runs WHERE patient_id = ? AND COALESCE(json_extract(state, '$.kind'), 'analysis') = ? ORDER BY created_at DESC LIMIT 50", (patient_id, kind),
     ).fetchall()
     return [{key: run[key] for key in ("id", "created_at", "status", "version")}
             for run in (json.loads(row["state"]) for row in rows)]
@@ -92,15 +92,35 @@ def decide(run_id, finding_id, request, reviewer):
             raise HTTPException(409, "Resolve the clarification before reviewing this finding")
         if request.action == "accepted" and (not finding["evidence"] or finding["assertion"] == "conflicting"):
             raise HTTPException(422, "Evidence is missing or conflicting. Edit with a reason, reject, or request clarification.")
-        if request.action == "edited" and not (request.edited_text or "").strip():
+        is_extraction = finding.get("kind") == "extraction"
+        edited_data = None
+        edited_text = request.edited_text
+        if is_extraction:
+            from app.ingestion.structured import describe
+            from app.review.extraction import corrected_field
+
+            if request.edited_text is not None:
+                raise HTTPException(422, "Use structured fields to correct an extraction")
+            if request.action == "edited":
+                if request.edited_data is None:
+                    raise HTTPException(422, "Enter the corrected structured fields")
+                edited_data = corrected_field(finding, request.edited_data)
+                edited_text = describe(edited_data["kind"], edited_data["data"])
+        elif request.edited_data is not None:
+            raise HTTPException(422, "Structured corrections apply only to extractions")
+        if request.action != "edited" and request.edited_data is not None:
+            raise HTTPException(422, "Only an edit may change extracted fields")
+        if request.action == "edited" and not (edited_text or "").strip():
             raise HTTPException(422, "Enter the corrected finding")
         if request.action != "edited" and request.edited_text is not None:
             raise HTTPException(422, "Only an edit may change the finding text")
         previous = copy.deepcopy(finding)
         finding["status"] = request.action
         finding["decision"] = {"action": request.action, "reason": request.reason,
-                               "edited_text": request.edited_text.strip() if request.edited_text else None,
+                               "edited_text": edited_text.strip() if edited_text else None,
                                "reviewer": reviewer, "at": now()}
+        if edited_data is not None:
+            finding["decision"]["edited_data"] = edited_data
         if request.action == "clarification_requested":
             run["clarifications"].append({"id": str(uuid.uuid4()), "kind": "finding",
                                           "finding_id": finding_id, "question": request.reason, "status": "pending"})
@@ -119,6 +139,10 @@ def finalize(run_id, version, reviewer):
         run["status"] = "finalized"
         run["finalized_by"] = reviewer
         run["finalized_at"] = now()
+        if run.get("kind") == "extraction":
+            from app.review.extraction import commit_fields
+
+            run["committed_fields"] = commit_fields(_get_conn(), run, reviewer)
         return {"accepted": sum(f["status"] in ("accepted", "edited") for f in run["findings"])}
     return mutate(run_id, version, reviewer, "review_finalized", change)
 
@@ -127,7 +151,8 @@ def final_output(run_id):
     run = get_run(run_id)
     if run["status"] != "finalized":
         raise HTTPException(409, "This analysis has not been finalized by a reviewer")
-    findings = [dict(f, text=(f["decision"].get("edited_text") or f["original_text"]))
+    findings = [dict(f, text=(f["decision"].get("edited_text") or f["original_text"]),
+                     **({"extracted": f["decision"].get("edited_data") or f["extracted"]} if f.get("kind") == "extraction" else {}))
                 for f in run["findings"] if f["status"] in ("accepted", "edited")]
     return {"run_id": run_id, "patient_id": run["patient_id"], "status": "finalized",
             "reviewer": run["finalized_by"], "at": run["finalized_at"], "findings": findings}
