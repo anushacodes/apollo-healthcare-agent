@@ -241,9 +241,3 @@ CI checks Python lint, offline tests, and frontend lint/typecheck/build. Tests i
 The offline evaluation harness checks 10 labeled synthetic cases for assertion handling, exact evidence offsets, conflicting records, missing inputs, unsupported drafts, and insufficient-context refusal. This is a policy regression set, not an LLM-quality or clinical validation benchmark.
 
 A separate extraction regression set contains 10 hand-labeled synthetic English documents covering structured fields, assertion status, held and historical medications, dates, duplicate proposals, missing doses, and source offsets. Tests also check known results from the bundled Case A laboratory report. These fixtures do not establish accuracy on arbitrary clinical documents.
-
----
-
-README structure inspired by [Healthcare Voice Agent](https://github.com/santiago68310/Healthcare-voice-agent). Human-review design also draws on [Agentic Medical Coding AI](https://github.com/nipa-analytics/agentic-medical-coding-ai). Architecture diagrams describe Apollo's own implementation.
-
-The document-extraction workflow also takes inspiration from [Multi-Intelligence Medical Companion](https://github.com/13139531101/Multi-Intelligence-Medical-Companion). Apollo's English extractor and synthetic extraction fixtures are implemented in this repository.
