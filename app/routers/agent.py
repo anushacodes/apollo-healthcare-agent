@@ -3,8 +3,8 @@ import logging
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 
-from app.agent.diagnostics.graph import run_graph_streaming
 from app.agent.seed_patient import get_case, list_cases
+from app.review.workflow import run_reviewable_analysis as run_graph_streaming
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/agent", tags=["agent"])
@@ -44,12 +44,15 @@ async def run_agent_ws(websocket: WebSocket, patient_id: str):
     try:
         raw = await websocket.receive_text()
         payload = json.loads(raw)
+        if not isinstance(payload, dict):
+            await websocket.send_json({"node": "__error__", "error": "Expected a JSON object"})
+            return
 
         # Allow client to send {"case": "case_a"} as a shorthand
         if "case" in payload:
             patient_data = get_case(payload["case"])
             if not patient_data:
-                await websocket.send_json({"error": f"Case '{payload['case']}' not found"})
+                await websocket.send_json({"node": "__error__", "error": f"Case '{payload['case']}' not found"})
                 await websocket.close()
                 return
         else:
@@ -108,9 +111,12 @@ async def run_agent_http(patient_id: str, body: dict):
     diagnoses = {}
     interactions = {}
     calculator_results = []
+    review_run = None
 
     async for event in run_graph_streaming(patient_data):
         audit_log = event.get("audit_log", audit_log)
+        if event.get("node") == "__review__":
+            review_run = event["review_run"]
         if event.get("node") == "summarizer":
             final_summary = event.get("final_summary")
         if event.get("diagnoses"):
@@ -122,6 +128,7 @@ async def run_agent_http(patient_id: str, body: dict):
 
     return {
         "patient_id": patient_id,
+        "review_run": review_run,
         "final_summary": final_summary,
         "diagnoses": diagnoses,
         "interactions": interactions,

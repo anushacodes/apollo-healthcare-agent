@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 
@@ -32,6 +33,12 @@ async def rag_stream(websocket: WebSocket, patient_id: str):
     try:
         raw = await websocket.receive_text()
         payload = json.loads(raw)
+        if not isinstance(payload, dict):
+            await websocket.send_json({"type": "error", "message": "Expected a JSON object"})
+            return
+        if not isinstance(payload.get("question", ""), str):
+            await websocket.send_json({"type": "error", "message": "Question must be a string"})
+            return
         question = payload.get("question", "").strip()
         case_key = payload.get("case_key")
 
@@ -42,7 +49,10 @@ async def rag_stream(websocket: WebSocket, patient_id: str):
         # Load patient data
         patient_data: dict = {}
         if case_key:
-            patient_data = get_case(case_key) or {}
+            patient_data = get_case(case_key) if isinstance(case_key, str) else None
+            if not patient_data:
+                await websocket.send_json({"type": "error", "message": "Unknown demo case"})
+                return
         if not patient_data:
             patient_data = {"patient_id": patient_id, "patient": {}, "summary": {}, "source_documents": {}}
 
@@ -58,6 +68,11 @@ async def rag_stream(websocket: WebSocket, patient_id: str):
         try:
             await websocket.send_json({"type": "error", "message": str(exc)})
         except Exception:
+            pass
+    finally:
+        try:
+            await websocket.close()
+        except RuntimeError:
             pass
 
 
@@ -99,10 +114,20 @@ async def ingest_document(patient_id: str, file: UploadFile = File(...)):
     from app.ingestion.embedder import embed_chunks_async
     from app.ingestion.parser import parse_document_async
 
+    filename = file.filename or ""
+    if not filename or not os.path.basename(filename):
+        raise HTTPException(status_code=400, detail="A filename is required")
+    filename = os.path.basename(filename)
+    from app.ingestion.parser import is_supported
+
+    if not is_supported(filename):
+        raise HTTPException(status_code=415, detail="Unsupported file type")
     content = await _read_upload_capped(file)
+    if not content:
+        raise HTTPException(status_code=422, detail="File is empty")
 
     try:
-        suffix = os.path.splitext(file.filename)[1]
+        suffix = os.path.splitext(filename)[1]
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
             tmp.write(content)
             tmp_path = tmp.name
@@ -114,7 +139,7 @@ async def ingest_document(patient_id: str, file: UploadFile = File(...)):
 
                 text = _decode_text(content)
                 result = ExtractionResult(
-                    source_path=file.filename,
+                    source_path=filename,
                     extractor_type="text",
                     text=text,
                     tables=[],
@@ -131,42 +156,28 @@ async def ingest_document(patient_id: str, file: UploadFile = File(...)):
             os.remove(tmp_path)
 
         # Chunk and Embed
-        chunks = chunk_text(result.text, patient_id, file.filename)
+        chunks = chunk_text(result.text, patient_id, filename)
+        if not chunks:
+            raise HTTPException(status_code=422, detail="No indexable text found in this document")
         upserted = await embed_chunks_async(chunks)
         mark_document_indexed(
             patient_id,
-            file.filename,
+            filename,
             hash_text(result.text),
             chunk_count=len(chunks),
         )
 
-        return {"status": "success", "file": file.filename, "chunks_embedded": upserted}
+        return {"status": "success", "file": filename, "chunks_indexed": len(chunks),
+                "chunks_embedded": upserted}
     except HTTPException:
         raise
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        log.exception("[rag] Document ingestion failed")
+        raise HTTPException(status_code=500, detail="Document ingestion failed") from exc
 
 
 @router.get("/sources/{patient_id}")
 async def get_sources(patient_id: str):
-    from qdrant_client.models import FieldCondition, Filter, MatchValue
+    from app.agent.sqlite_cache import list_document_sources
 
-    from app.ingestion.embedder import _COLLECTION, _get_client
-    client = _get_client()
-    if not client:
-        return {"sources": []}
-        
-    try:
-        must = [FieldCondition(key="patient_id", match=MatchValue(value=patient_id))]
-        results = client.scroll(
-            collection_name=_COLLECTION,
-            scroll_filter=Filter(must=must),
-            limit=500,
-            with_payload=True,
-            with_vectors=False
-        )[0]
-        sources = list({r.payload.get("source_doc") for r in results if r.payload.get("source_doc")})
-        return {"sources": sources}
-    except Exception as exc:
-        log.error("[rag] GET sources failed: %s", exc)
-        return {"sources": []}
+    return {"sources": await asyncio.to_thread(list_document_sources, patient_id)}

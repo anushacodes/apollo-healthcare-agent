@@ -1,3 +1,4 @@
+import asyncio
 import time
 
 from fastapi import APIRouter, HTTPException, Path
@@ -22,7 +23,9 @@ async def summarize_patient(
     patient_data = _resolve_patient(patient_id, body)
 
     try:
-        summary: ClinicalSummary = run_summarizer(patient_data)
+        summary: ClinicalSummary = await asyncio.to_thread(
+            run_summarizer, patient_data, skip_cache=bool(body and body.force_regenerate),
+        )
     except Exception as exc:
         raise HTTPException(status_code=503, detail=f"Summarization failed: {exc}") from exc
 
@@ -43,5 +46,5 @@ def _resolve_patient(patient_id: str, body: SummarizeRequest | None) -> dict:
     # Future: load from database by patient_id
     raise HTTPException(
         status_code=404, 
-        detail=f"Patient {patient_id} not found in seed cases or database. Please upload records first."
+        detail=f"Patient {patient_id} not found. Summarization currently supports demo case keys only."
     )
