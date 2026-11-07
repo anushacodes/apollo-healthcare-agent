@@ -5,6 +5,7 @@ import type { Reviewer, ReviewRun, ReviewAction, ReviewEvidence, ReviewClarifica
 const LABELS: Record<string, string> = {
   unavailable: 'Unavailable', conflicting: 'Conflicting records', documented: 'Documented', suspected: 'Suspected', historical: 'Historical', negated: 'Negated',
   ai_suggested: 'AI suggested', computed: 'Calculated', reviewer_supplied: 'Reviewer supplied',
+  ruled_out: 'Ruled out',
   pending: 'Needs review', accepted: 'Accepted', edited: 'Edited', rejected: 'Rejected',
   clarification_requested: 'Needs clarification',
 }
@@ -17,6 +18,7 @@ export function ReviewPanel({ run, onChange }: { run: ReviewRun; onChange: (run:
   const [active, setActive] = useState<{ id: string; action: ReviewAction } | null>(null)
   const [reason, setReason] = useState('')
   const [edited, setEdited] = useState('')
+  const [editedData, setEditedData] = useState<Record<string, string>>({})
   const [evidence, setEvidence] = useState<ReviewEvidence | null>(null)
   const [history, setHistory] = useState<{ events: { event: string; at: string; reviewer: Reviewer | null; details: Record<string, unknown> }[]; chain_valid: boolean } | null>(null)
   const [finalOutput, setFinalOutput] = useState<string | null>(null)
@@ -49,16 +51,19 @@ export function ReviewPanel({ run, onChange }: { run: ReviewRun; onChange: (run:
   const pending = run.findings.filter(f => f.status === 'pending' || f.status === 'clarification_requested').length
   const unresolved = run.clarifications.filter(q => q.status === 'pending')
   const finalized = run.status === 'finalized'
+  const extraction = run.kind === 'extraction'
   const canFinalize = run.findings.length > 0 && pending === 0 && unresolved.length === 0
 
   return <section className="space-y-5" aria-labelledby="review-title">
     <div className="panel space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div><h3 id="review-title" className="font-serif text-xl font-semibold">{finalized ? 'Review finalized' : 'Review findings'}</h3>
+        <div><h3 id="review-title" className="font-serif text-xl font-semibold">{finalized ? 'Review finalized' : extraction ? 'Review extracted fields' : 'Review findings'}</h3>
           <p className="mt-1 text-sm text-muted">{finalized ? 'Accepted findings and corrections are saved.' : `${pending} finding${pending === 1 ? '' : 's'} need review${unresolved.length ? ` · ${unresolved.length} clarification${unresolved.length === 1 ? '' : 's'} pending` : ''}`}</p>
         </div>
         <button className="secondary-button" disabled={saving} onClick={reload}>Reload review</button>
       </div>
+      {extraction && <p className="max-w-[75ch] text-sm text-muted">{finalized ? 'Approved fields are saved to the patient record with their source and recorded status.' : 'Check each field against its source. Accepted fields and corrections enter the patient record when you finalize this review.'}</p>}
+      {extraction && !!run.analysis?.warnings?.length && <ul className="list-disc space-y-2 pl-5 text-sm text-caution">{run.analysis.warnings.map(warning => <li key={warning}>{warning}</li>)}</ul>}
       {!reviewer && !finalized ? <form className="flex flex-wrap items-end gap-3" onSubmit={async e => {
         e.preventDefault(); setError(''); setSaving(true)
         try { const result = await reviewRequest<{ reviewer: Reviewer }>('/session', { name }); setReviewer(result.reviewer) }
@@ -72,13 +77,16 @@ export function ReviewPanel({ run, onChange }: { run: ReviewRun; onChange: (run:
 
     {unresolved.map(q => <ClarificationForm key={q.id} question={q} disabled={!reviewer || saving || finalized} onSubmit={(body, finding) => save(`/clarifications/${q.id}${finding ? '/response' : ''}`, { ...body, version: run.version })} />)}
 
-    {run.findings.length === 0 && <p className="panel text-muted">No reviewable findings were produced. Resolve missing inputs or run a new analysis.</p>}
+    {run.findings.length === 0 && <p className="panel text-muted">{extraction ? 'No supported fields were found. Use explicit English field labels, medication lists, or laboratory tables. Keep the original document for manual review.' : 'No reviewable findings were produced. Resolve missing inputs or run a new analysis.'}</p>}
     {run.findings.map(finding => <article key={finding.id} className="panel space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <h4 className="font-medium">{finding.title}</h4>
         <div className="flex flex-wrap gap-2"><span className="status-badge">{LABELS[finding.assertion] || finding.assertion}</span><span className={`status-badge ${finding.status === 'rejected' ? 'text-critical' : finding.status === 'pending' ? 'text-caution' : 'text-accent'}`}>{LABELS[finding.status]}</span></div>
       </div>
-      <p className="whitespace-pre-wrap break-words leading-7">{finding.decision?.edited_text || finding.original_text}</p>
+      {finding.extracted ? <dl className="grid gap-3 sm:grid-cols-2">{finding.field_schema?.map(field => {
+        const value = (finding.decision?.edited_data || finding.extracted)?.data[field.name]
+        return value ? <div key={field.name}><dt className="text-sm text-muted">{field.label}</dt><dd className="mt-1 whitespace-pre-wrap break-words">{field.choices.length ? value.replaceAll('_', ' ') : value}</dd></div> : null
+      })}</dl> : <p className="whitespace-pre-wrap break-words leading-7">{finding.decision?.edited_text || finding.original_text}</p>}
       {finding.decision?.edited_text && <details><summary className="text-sm text-muted">Original suggestion</summary><p className="mt-2 whitespace-pre-wrap text-sm">{finding.original_text}</p></details>}
       {finding.decision && <p className="text-sm text-muted">{finding.decision.reviewer.name} · {new Date(finding.decision.at).toLocaleString()}<br />{finding.decision.reason}</p>}
       {finding.assertion === 'conflicting' && <p className="rounded-lg bg-caution-subtle p-3 text-sm text-caution">The record contains conflicting assertions. Inspect the sources and edit, reject, or request clarification.</p>}
@@ -89,12 +97,15 @@ export function ReviewPanel({ run, onChange }: { run: ReviewRun; onChange: (run:
         ['accepted', 'Accept'], ['edited', 'Edit'], ['rejected', 'Reject'], ['clarification_requested', 'Ask for clarification'],
       ] as [ReviewAction, string][]).map(([action, label]) => <button key={action} className="secondary-button" disabled={!reviewer || saving || finding.status === 'clarification_requested' || (action === 'accepted' && (!finding.evidence.length || finding.assertion === 'conflicting'))} onClick={() => {
         setActive({ id: finding.id, action }); setReason(''); setEdited(finding.decision?.edited_text || finding.original_text)
+        setEditedData({ ...(finding.decision?.edited_data || finding.extracted)?.data })
       }}>{label}</button>)}</div>}
       {active?.id === finding.id && <form className="space-y-3 border-t border-rule pt-4" onSubmit={e => {
         e.preventDefault()
-        save(`/findings/${encodeURIComponent(finding.id)}/decision`, { version: run.version, action: active.action, reason, ...(active.action === 'edited' ? { edited_text: edited } : {}) })
+        save(`/findings/${encodeURIComponent(finding.id)}/decision`, { version: run.version, action: active.action, reason, ...(active.action === 'edited' ? finding.extracted ? { edited_data: editedData } : { edited_text: edited } : {}) })
       }}>
-        {active.action === 'edited' && <label className="block text-sm">Corrected finding<textarea required value={edited} onChange={e => setEdited(e.target.value)} rows={4} className="mt-1 block w-full rounded-lg border border-rule p-3 text-base" /></label>}
+        {active.action === 'edited' && (finding.extracted ? <div className="grid gap-4 sm:grid-cols-2">{finding.field_schema?.map(field => <label key={field.name} className="block text-sm">{field.label}{field.required ? ' *' : ''}
+          {field.choices.length ? <select required={field.required} value={editedData[field.name] || ''} onChange={e => setEditedData({ ...editedData, [field.name]: e.target.value })} className="mt-1 block w-full rounded-lg border border-rule p-3 text-base">{field.choices.map(choice => <option key={choice} value={choice}>{choice.replaceAll('_', ' ')}</option>)}</select> : <input required={field.required} maxLength={2000} value={editedData[field.name] || ''} onChange={e => setEditedData({ ...editedData, [field.name]: e.target.value })} className="mt-1 block w-full rounded-lg border border-rule p-3 text-base" />}
+        </label>)}</div> : <label className="block text-sm">Corrected finding<textarea required value={edited} onChange={e => setEdited(e.target.value)} rows={4} className="mt-1 block w-full rounded-lg border border-rule p-3 text-base" /></label>)}
         <label className="block text-sm">{active.action === 'clarification_requested' ? 'What needs clarification?' : 'Reason for your decision'}<textarea required minLength={3} maxLength={2000} value={reason} onChange={e => setReason(e.target.value)} rows={2} className="mt-1 block w-full rounded-lg border border-rule p-3 text-base" /></label>
         <div className="flex gap-2"><button className="primary-button" disabled={saving}>Save decision</button><button type="button" className="secondary-button" onClick={() => setActive(null)}>Cancel</button></div>
       </form>}
@@ -102,7 +113,7 @@ export function ReviewPanel({ run, onChange }: { run: ReviewRun; onChange: (run:
 
     <div className="panel space-y-4">
       <div className="flex flex-wrap gap-3">
-        {!finalized && <button className="primary-button" disabled={!reviewer || saving || !canFinalize} onClick={() => save('/finalize', { version: run.version })}>Finalize review</button>}
+        {!finalized && <button className="primary-button" disabled={!reviewer || saving || !canFinalize} onClick={() => save('/finalize', { version: run.version })}>{extraction ? 'Finalize and save fields' : 'Finalize review'}</button>}
         {finalized && <button className="primary-button" onClick={async () => {
           try { setFinalOutput(JSON.stringify(await reviewRequest(`/runs/${run.id}/final`), null, 2)) }
           catch (err) { setError((err as Error).message) }

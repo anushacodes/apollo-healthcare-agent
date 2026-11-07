@@ -58,6 +58,14 @@ export default function App() {
       })
   }
 
+  async function refreshRecord() {
+    const key = patient?._caseKey
+    const selection = selectionRef.current
+    if (!key) return
+    const updated = await api.getCaseData(key)
+    if (selection === selectionRef.current) setPatient({ ...updated, _caseKey: key })
+  }
+
   return (
     <div className="flex h-dvh flex-col bg-paper font-sans text-ink lg:flex-row">
       <div className="flex shrink-0 items-center justify-between border-b border-rule bg-sheet px-4 py-3 lg:hidden">
@@ -101,7 +109,7 @@ export default function App() {
               {activeTab === 'summary' && <SummaryTab patient={patient} />}
               {activeTab === 'diagnostics' && <DiagnosticsTab patient={patient} />}
               {activeTab === 'ask' && <AskTab patient={patient} />}
-              {activeTab === 'documents' && <DocumentsTab patient={patient} readOnly={Boolean(patient._caseKey)} />}
+              {activeTab === 'documents' && <DocumentsTab patient={patient} onRecordChange={refreshRecord} />}
             </div>
           </>
         )}

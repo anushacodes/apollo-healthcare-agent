@@ -1,4 +1,4 @@
-import type { AgentEvent, AskEvent, CaseListItem, PatientData } from './types'
+import type { AgentEvent, AskEvent, CaseListItem, PatientData, ReviewRun } from './types'
 
 async function getCases(): Promise<CaseListItem[]> {
   const r = await fetch('/api/agent/cases')
@@ -67,11 +67,12 @@ function streamAsk(
   return () => ws.close()
 }
 
-async function ingestDocument(patientId: string, file: File): Promise<void> {
+async function ingestDocument(patientId: string, file: File): Promise<{ review_run?: ReviewRun; extraction_warning?: string }> {
   const form = new FormData()
   form.append('file', file)
   const r = await fetch(`/api/rag/ingest/${patientId}`, { method: 'POST', body: form })
   if (!r.ok) throw new Error(`ingestDocument: ${r.status}`)
+  return r.json()
 }
 
 export const api = { getCases, getCaseData, getKgStatus, runAgentWs, streamAsk, ingestDocument }

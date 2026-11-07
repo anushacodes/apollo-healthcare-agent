@@ -99,6 +99,15 @@ export function SummaryTab({ patient }: { patient: PatientData }) {
         </div>
       </FactSection>
 
+      <FactSection title="Reviewed document fields" count={s.reviewed_fields?.length}>
+        <p className="mb-4 max-w-[75ch] text-sm text-muted">Approved document entries retain their recorded dates and statuses. Current medications and diagnoses remain listed above.</p>
+        <div className="divide-y divide-rule">{s.reviewed_fields?.map(field => <article key={field.id} className="space-y-3 py-4 first:pt-0">
+          <h4 className="font-medium capitalize">{field.kind.replaceAll('_', ' ')}</h4>
+          <dl className="grid gap-3 sm:grid-cols-2">{Object.entries(field.data).filter(([, value]) => value).map(([key, value]) => <div key={key}><dt className="text-sm capitalize text-muted">{key.replaceAll('_', ' ')}</dt><dd className="mt-1 break-words">{key === 'status' || key === 'flag' ? value.replaceAll('_', ' ') : value}</dd></div>)}</dl>
+          <details><summary className="text-sm text-muted">Source and review</summary><p className="mt-2 text-sm text-muted">{field.source_name} · Reviewed by {field.reviewer.name} · {new Date(field.recorded_at).toLocaleString()}</p><blockquote className="mt-3 whitespace-pre-wrap border-l-2 border-rule pl-4 leading-7">{field.quote}</blockquote></details>
+        </article>)}</div>
+      </FactSection>
+
       {technical && (
         <section className="panel space-y-6">
           <h3 className="section-title">Record details</h3>

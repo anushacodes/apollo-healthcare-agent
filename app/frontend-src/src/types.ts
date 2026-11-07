@@ -54,6 +54,7 @@ export interface ClinicalSummary {
 }
 
 export interface PatientSummary {
+  reviewed_fields?: ReviewedDocumentField[]
   summary_narrative?: string
   diagnoses?: Diagnosis[]
   medications?: Medication[]
@@ -123,6 +124,15 @@ export interface ReviewEvidence {
   assertion: string
 }
 export interface Reviewer { id: string; name: string }
+export interface ExtractedField { kind: string; data: Record<string, string> }
+export interface ReviewedDocumentField extends ExtractedField {
+  id: string
+  source_name: string
+  quote: string
+  run_id: string
+  recorded_at: string
+  reviewer: Reviewer
+}
 export type ReviewAction = 'accepted' | 'edited' | 'rejected' | 'clarification_requested'
 export interface ReviewFinding {
   id: string
@@ -130,9 +140,11 @@ export interface ReviewFinding {
   title: string
   original_text: string
   assertion: string
+  extracted?: ExtractedField
+  field_schema?: { name: string; label: string; required: boolean; choices: string[] }[]
   evidence: ReviewEvidence[]
   status: 'pending' | ReviewAction
-  decision: { action: ReviewAction; reason: string; edited_text: string | null; reviewer: Reviewer; at: string } | null
+  decision: { action: ReviewAction; reason: string; edited_text: string | null; edited_data?: ExtractedField; reviewer: Reviewer; at: string } | null
 }
 export interface ReviewClarification {
   id: string
@@ -145,6 +157,9 @@ export interface ReviewClarification {
   response?: string
 }
 export interface ReviewRun {
+  kind?: 'analysis' | 'extraction'
+  committed_fields?: number
+  analysis?: { source_name?: string; warnings?: string[]; scope?: string }
   id: string
   patient_id: string
   created_at: string
