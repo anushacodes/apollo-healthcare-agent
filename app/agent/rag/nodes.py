@@ -83,7 +83,10 @@ def _format_chunks(chunks: list[dict]) -> str:
     lines = []
     for i, c in enumerate(chunks, 1):
         source = c.get("source_doc") or c.get("title") or "unknown"
-        text   = c.get("text", "")[:900]
+        # Structured records contain several sections; a short excerpt can cut
+        # off the labs and medications that are absent from document retrieval.
+        limit = 12000 if c.get("doc_type") == "structured_summary" else 900
+        text = c.get("text", "")[:limit]
         lines.append(f"[{i}] Source: {source}\n{text}")
     return "\n\n---\n\n".join(lines)
 
@@ -439,7 +442,9 @@ def sufficiency_judge_node(state: RAGState) -> dict:
     chunks  = state.all_chunks
     thinking = _ev("sufficiency_judge", "thinking", "Assessing context coverage...")
 
-    if len(chunks) >= 2:
+    # A single patient record is a valid source for a record-specific question.
+    minimum_sources = 1 if state.route == "patient_docs" else 2
+    if len(chunks) >= minimum_sources:
         result = _ev("sufficiency_judge", "result",
                      f"Context sufficient — {len(chunks)} chunks available",
                      {"sufficient": True, "confidence": 0.85})

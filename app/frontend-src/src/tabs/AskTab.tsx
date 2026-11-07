@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api'
+import { BrandMark, Icon, type IconName } from '../components/Icon'
 import { MarkdownAnswer } from '../components/MarkdownAnswer'
 import { DetailToggle } from '../components/DetailToggle'
 import { ASK_STEP_LABELS, ASK_TECHNICAL_LABELS, faithfulnessPlain } from '../labels'
@@ -107,9 +108,9 @@ export function AskTab({ patient }: { patient: PatientData }) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-rule bg-sheet px-4 py-5 sm:px-6">
+      <div className="mx-auto flex w-full max-w-6xl shrink-0 flex-wrap items-center justify-between gap-3 px-4 pt-6 sm:px-6 lg:px-8">
         <div>
-          <h2 className="font-serif text-2xl font-semibold text-ink">Ask</h2>
+          <h2 className="page-title">Ask</h2>
         </div>
         <DetailToggle technical={technical} onChange={setTechnical} label="Details" />
       </div>
@@ -117,16 +118,18 @@ export function AskTab({ patient }: { patient: PatientData }) {
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="page-content space-y-6" aria-live="polite" aria-relevant="additions text">
         {messages.length === 0 && (
-          <div className="mx-auto max-w-2xl space-y-5 py-6 text-center">
-            <p className="text-base text-muted">What would you like to know about this patient?</p>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {SUGGESTIONS.map((q) => (
+          <div className="ask-empty">
+            <BrandMark />
+            <h3 className="ask-empty-title">Ask the patient record</h3>
+            <p className="mt-3 text-base text-muted">What would you like to know about this patient?</p>
+            <div className="ask-suggestions">
+              {SUGGESTIONS.map((q, index) => (
                 <button
                   key={q}
                   onClick={() => ask(q)}
-                  className="secondary-button text-left leading-relaxed"
+                  className="ask-suggestion"
                 >
-                  {q}
+                  <Icon name={(['diagnosis', 'lab', 'document', 'medication'] as IconName[])[index]} /><span>{q}</span>
                 </button>
               ))}
             </div>
@@ -150,8 +153,9 @@ export function AskTab({ patient }: { patient: PatientData }) {
           e.preventDefault()
           ask(input)
         }}
-        className="flex shrink-0 gap-2 border-t border-rule bg-sheet p-4 sm:px-6"
+        className="mx-auto w-full max-w-6xl shrink-0 px-4 pb-5 pt-3 sm:px-6 lg:px-8"
       >
+        <div className="ask-composer">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -165,8 +169,9 @@ export function AskTab({ patient }: { patient: PatientData }) {
           disabled={busy || !input.trim()}
           className="primary-button"
         >
-          Send
+          Send <Icon name="send" />
         </button>
+        </div>
       </form>
     </div>
   )

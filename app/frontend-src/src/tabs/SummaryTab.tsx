@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { Icon, type IconName } from '../components/Icon'
 import { DetailToggle } from '../components/DetailToggle'
 import { explainIcdCode, explainLabFlag, isCriticalLabFlag } from '../labels'
 import type { PatientData } from '../types'
@@ -17,13 +18,22 @@ export function SummaryTab({ patient }: { patient: PatientData }) {
     <div className="page-content space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="font-serif text-2xl font-semibold">Overview</h2>
+          <h2 className="page-title">Overview</h2>
         </div>
         <DetailToggle technical={technical} onChange={setTechnical} label="More details" />
       </div>
 
+      <div className="overview-intro">
+      <section className="panel overview-brief">
+        <h3 className="section-title">At a glance</h3>
+        <p id="overview-narrative" className={`max-w-[68ch] leading-7 ${fullNarrative || narrative.length <= 500 ? '' : 'line-clamp-5'}`}>{narrative}</p>
+        {narrative.length > 500 && <button className="mt-3 min-h-11 text-sm font-medium text-accent underline underline-offset-4" aria-expanded={fullNarrative} aria-controls="overview-narrative" onClick={() => setFullNarrative(!fullNarrative)}>
+          {fullNarrative ? 'Show shorter overview' : 'Read full overview'}
+        </button>}
+      </section>
+
       {concerns.length > 0 && (
-        <section className="panel border-caution/40 bg-caution-subtle" aria-labelledby="concerns-heading">
+        <section className="panel overview-concerns" aria-labelledby="concerns-heading">
           <h3 id="concerns-heading" className="section-title text-caution">Key concerns</h3>
           <ul id="concerns-list" className="max-w-[75ch] list-disc space-y-3 pl-5 leading-relaxed">
             {(allConcerns ? concerns : concerns.slice(0, 3)).map((c, i) => <li key={i}>{c}</li>)}
@@ -34,13 +44,7 @@ export function SummaryTab({ patient }: { patient: PatientData }) {
         </section>
       )}
 
-      <section className="panel">
-        <h3 className="section-title">At a glance</h3>
-        <p id="overview-narrative" className={`max-w-[68ch] leading-7 ${fullNarrative || narrative.length <= 500 ? '' : 'line-clamp-5'}`}>{narrative}</p>
-        {narrative.length > 500 && <button className="mt-3 min-h-11 text-sm font-medium text-accent underline underline-offset-4" aria-expanded={fullNarrative} aria-controls="overview-narrative" onClick={() => setFullNarrative(!fullNarrative)}>
-          {fullNarrative ? 'Show shorter overview' : 'Read full overview'}
-        </button>}
-      </section>
+      </div>
 
       {!!cs?.follow_up_actions?.length && (
         <section className="panel border-accent/30">
@@ -51,6 +55,7 @@ export function SummaryTab({ patient }: { patient: PatientData }) {
         </section>
       )}
 
+      <div className="clinical-record">
       <FactSection title="Diagnoses" count={s.diagnoses?.length}>
         <div className="divide-y divide-rule">
           {(s.diagnoses || []).map((dx, i) => (
@@ -108,6 +113,8 @@ export function SummaryTab({ patient }: { patient: PatientData }) {
         </article>)}</div>
       </FactSection>
 
+      </div>
+
       {technical && (
         <section className="panel space-y-6">
           <h3 className="section-title">Record details</h3>
@@ -137,9 +144,10 @@ export function SummaryTab({ patient }: { patient: PatientData }) {
 
 function FactSection({ title, count, children }: { title: string; count?: number; children: ReactNode }) {
   if (!count) return null
-  return <details className="panel" open>
-    <summary className="font-serif text-xl font-semibold">{title} <span className="ml-2 font-sans text-sm font-normal text-muted">{count}</span></summary>
-    <div className="mt-5">{children}</div>
+  const icons: Record<string, IconName> = { Diagnoses: 'diagnosis', Medications: 'medication', 'Recent labs': 'lab', 'Reviewed document fields': 'review' }
+  return <details className="record-section" open>
+    <summary><Icon name={icons[title] || 'document'} /><span className="record-section-title">{title}</span><span className="record-count">{count}</span><Icon name="chevron" className="record-chevron" /></summary>
+    <div className="record-section-content">{children}</div>
   </details>
 }
 

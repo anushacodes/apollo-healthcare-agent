@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { api } from './api'
 import { PatientHeader } from './components/PatientHeader'
 import { Sidebar } from './components/Sidebar'
+import { BrandMark, Icon, type IconName } from './components/Icon'
 import { AskTab } from './tabs/AskTab'
 import { DiagnosticsTab } from './tabs/DiagnosticsTab'
 import { DocumentsTab } from './tabs/DocumentsTab'
@@ -10,11 +11,11 @@ import type { CaseListItem, PatientData } from './types'
 
 type TabId = 'summary' | 'diagnostics' | 'ask' | 'documents'
 
-const TABS: { id: TabId; label: string }[] = [
-  { id: 'summary', label: 'Overview' },
-  { id: 'diagnostics', label: 'Analysis' },
-  { id: 'ask', label: 'Ask' },
-  { id: 'documents', label: 'Documents' },
+const TABS: { id: TabId; label: string; icon: IconName }[] = [
+  { id: 'summary', label: 'Overview', icon: 'overview' },
+  { id: 'diagnostics', label: 'Analysis', icon: 'analysis' },
+  { id: 'ask', label: 'Ask', icon: 'ask' },
+  { id: 'documents', label: 'Documents', icon: 'document' },
 ]
 
 export default function App() {
@@ -68,8 +69,8 @@ export default function App() {
 
   return (
     <div className="flex h-dvh flex-col bg-paper font-sans text-ink lg:flex-row">
-      <div className="flex shrink-0 items-center justify-between border-b border-rule bg-sheet px-4 py-3 lg:hidden">
-        <span className="font-serif text-xl font-semibold">Apollo</span>
+      <div className="mobile-workspace-bar flex shrink-0 items-center justify-between px-4 py-3 lg:hidden">
+        <span className="mobile-brand"><BrandMark />Apollo</span>
         <button className="secondary-button" aria-expanded={sidebarOpen} aria-controls="patient-selector" onClick={() => setSidebarOpen(!sidebarOpen)}>
           {sidebarOpen ? 'Hide patients' : 'Choose patient'}
         </button>
@@ -88,18 +89,15 @@ export default function App() {
           <>
             <PatientHeader patient={patient} />
 
-            <nav aria-label="Patient sections" className="flex shrink-0 gap-6 overflow-x-auto border-b border-rule bg-sheet px-4 sm:px-6">
+            <nav aria-label="Patient sections" className="workspace-tabs">
               {TABS.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   aria-current={activeTab === tab.id ? 'page' : undefined}
-                  className={`min-h-12 shrink-0 border-b-2 px-1 py-3 text-base transition-colors ${
-                    activeTab === tab.id
-                      ? 'border-accent font-medium text-accent'
-                      : 'border-transparent text-muted hover:text-ink'
-                  }`}
+                  className="workspace-tab"
                 >
+                  <Icon name={tab.icon} />
                   {tab.label}
                 </button>
               ))}

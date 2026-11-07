@@ -65,12 +65,6 @@ export interface PatientSummary {
   clinical_summary?: ClinicalSummary | null
 }
 
-export interface SourceDocument {
-  icon?: string
-  label: string
-  description?: string
-}
-
 export interface PatientData {
   patient_id: string
   patient?: PatientInfo

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { api, reviewRequest } from '../api'
+import { Icon } from '../components/Icon'
 import { ReviewPanel } from '../components/ReviewPanel'
 import type { PatientData, ReviewRun } from '../types'
 
@@ -67,7 +68,7 @@ export function DocumentsTab({ patient, onRecordChange }: { patient: PatientData
 
   return <div className="page-content space-y-6">
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <h2 className="font-serif text-2xl font-semibold">Documents</h2>
+      <h2 className="page-title">Documents</h2>
       <button className="primary-button" disabled={busy} aria-expanded={adding} onClick={() => setAdding(!adding)}>{adding ? 'Close document form' : 'Add document'}</button>
     </div>
     {error && <p role="alert" className="panel text-critical">{error}</p>}
@@ -86,8 +87,8 @@ export function DocumentsTab({ patient, onRecordChange }: { patient: PatientData
         <button className="primary-button" disabled={busy || !sourceName.trim() || !text.trim()}>Extract fields</button>
       </form>
     </section>}
-    {docs.length ? <div className="space-y-3">{docs.map(([name, content]) => <details key={name} className="panel">
-      <summary className="font-medium capitalize">{name.replaceAll('_', ' ')}</summary>
+    {docs.length ? <div className="space-y-3">{docs.map(([name, content]) => <details key={name} className="panel document-details">
+      <summary className="document-summary font-medium capitalize"><Icon name="document" /><span className="min-w-0 flex-1 break-words">{name.replaceAll('_', ' ')}</span><Icon name="chevron" className="document-chevron" /></summary>
       <div className="mt-4"><button className="secondary-button" disabled={busy || !content.trim()} onClick={() => extract(name.replaceAll('_', ' '), content)}>Extract fields from this document</button></div>
       <div className="mt-5 max-h-[60vh] overflow-y-auto border-t border-rule pt-4"><p className="max-w-[75ch] whitespace-pre-wrap break-words leading-7">{content || 'No text available.'}</p></div>
     </details>)}</div> : <p className="panel text-muted">No source documents attached. Add a document to extract and review its fields.</p>}

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { CaseListItem } from '../types'
+import { BrandMark, Icon, PatientAvatar } from './Icon'
 
 interface Props {
   cases: CaseListItem[]
@@ -17,47 +18,22 @@ export function Sidebar({ cases, activeKey, onSelect }: Props) {
   const [query, setQuery] = useState('')
   const filtered = cases.filter((c) => c.label.toLowerCase().includes(query.toLowerCase()))
 
-  return (
-    <aside className="flex max-h-[45dvh] w-full shrink-0 flex-col border-r border-rule bg-sheet lg:h-full lg:max-h-none lg:w-72">
-      <div className="border-b border-rule p-4">
-        <h1 className="font-serif text-2xl font-semibold tracking-tight text-ink">Apollo</h1>
-      </div>
-
-      <div className="p-3">
-        <input
-          type="text"
-          aria-label="Search patients"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search patients…"
-          className="w-full rounded-sm border border-rule bg-paper px-3 py-1.5 text-base text-ink
-                     placeholder:text-muted focus:border-accent focus:outline-none"
-        />
-      </div>
-
-      <nav aria-label="Patients" className="flex-1 overflow-y-auto px-3">
-        {filtered.length === 0 && <p className="p-3 text-sm text-muted">No matching patients.</p>}
-        {filtered.map((c) => {
-          const { name, sub } = parseLabel(c.label)
-          const active = c.key === activeKey
-          return (
-            <button
-              key={c.key}
-              onClick={() => onSelect(c.key)}
-              aria-current={active ? 'true' : undefined}
-              className={`flex w-full items-baseline gap-3 border-l-2 py-4 pl-3 text-left transition-colors ${
-                active ? 'border-accent bg-accent-subtle' : 'border-transparent hover:bg-paper'
-              }`}
-            >
-              <span className="min-w-0 flex-1">
-                <span className="block text-base font-medium text-ink">{name}</span>
-                <span className="block text-sm text-muted">{sub}</span>
-              </span>
-            </button>
-          )
-        })}
-      </nav>
-
-    </aside>
-  )
+  return <aside className="patient-sidebar">
+    <div className="sidebar-brand"><BrandMark /><span>Apollo</span></div>
+    <label className="sidebar-search"><Icon name="search" />
+      <input type="search" aria-label="Search patients" value={query} onChange={e => setQuery(e.target.value)} placeholder="Search patients…" />
+    </label>
+    <nav aria-label="Patients" className="patient-list">
+      {filtered.length === 0 && <p className="px-3 py-5 text-sm">No matching patients.</p>}
+      {filtered.map(c => {
+        const { name, sub } = parseLabel(c.label)
+        const active = c.key === activeKey
+        return <button key={c.key} onClick={() => onSelect(c.key)} aria-current={active ? 'true' : undefined} className={`patient-option ${active ? 'is-active' : ''}`}>
+          <PatientAvatar name={name} />
+          <span className="min-w-0 flex-1"><span className="patient-name">{name}</span><span className="patient-condition">{sub}</span></span>
+          {active && <Icon name="chevron" className="patient-selected-icon" />}
+        </button>
+      })}
+    </nav>
+  </aside>
 }

@@ -12,12 +12,6 @@ async function getCaseData(caseKey: string): Promise<PatientData> {
   return r.json()
 }
 
-async function getKgStatus(): Promise<{ local_conditions: number }> {
-  const r = await fetch('/api/kg/status')
-  if (!r.ok) throw new Error(`getKgStatus: ${r.status}`)
-  return r.json()
-}
-
 function runAgentWs(
   patientId: string,
   payload: unknown,
@@ -71,11 +65,14 @@ async function ingestDocument(patientId: string, file: File): Promise<{ review_r
   const form = new FormData()
   form.append('file', file)
   const r = await fetch(`/api/rag/ingest/${patientId}`, { method: 'POST', body: form })
-  if (!r.ok) throw new Error(`ingestDocument: ${r.status}`)
+  if (!r.ok) {
+    const data = await r.json().catch(() => ({}))
+    throw new Error(typeof data.detail === 'string' ? data.detail : 'Could not read this document. Try uploading its text export.')
+  }
   return r.json()
 }
 
-export const api = { getCases, getCaseData, getKgStatus, runAgentWs, streamAsk, ingestDocument }
+export const api = { getCases, getCaseData, runAgentWs, streamAsk, ingestDocument }
 
 
 export async function reviewRequest<T>(path: string, body?: unknown): Promise<T> {

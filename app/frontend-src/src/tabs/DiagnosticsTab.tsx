@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { api, reviewRequest } from '../api'
+import { Icon } from '../components/Icon'
 import { ReviewPanel } from '../components/ReviewPanel'
 import { DetailToggle } from '../components/DetailToggle'
 import {
@@ -77,7 +78,7 @@ export function DiagnosticsTab({ patient }: { patient: PatientData }) {
   return (
     <div className="page-content space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-serif text-2xl text-ink">Analysis</h2>
+        <h2 className="page-title">Analysis</h2>
         <DetailToggle technical={technical} onChange={setTechnical} label="Details" />
       </div>
 
@@ -89,10 +90,12 @@ export function DiagnosticsTab({ patient }: { patient: PatientData }) {
       }}><option value="" disabled>Select an analysis</option>{savedRuns.map(item => <option key={item.id} value={item.id}>{new Date(item.created_at).toLocaleString()} · {item.status.replaceAll('_', ' ')}</option>)}</select></label>}
       {loading && <p role="status" className="text-muted">Loading saved analysis…</p>}
       {!started && !loading && (
-        <div className="panel text-center">
-          <p className="mb-4 text-base text-muted">
+        <div className="panel analysis-intro">
+          <Icon name="analysis" />
+          <div className="space-y-3"><h3>Clinical analysis</h3>
+          <p>
             Review medications, possible diagnoses, and clinical risk scores.
-          </p>
+          </p></div>
           <button onClick={run} className="primary-button">
             Run analysis
           </button>
