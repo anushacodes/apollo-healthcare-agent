@@ -20,6 +20,7 @@ A multi-agent clinical intelligence workspace for exploring patient records, rev
 - **Evidence-grounded answers** — patient records and clinical guidelines retrieved with SQLite FTS5 and optional Qdrant vectors.
 - **Live feedback** — answers stream with citations, followed by source-review scores and suggested follow-up questions.
 - **Document retrieval** — text ingestion by default; optional PDF, Word, and image extraction with local models.
+- **Reviewed extraction** — English document fields with exact source passages, structured corrections, and approval before they enter the patient record.
 
 <details>
 <summary>View the workspace</summary>
@@ -57,6 +58,7 @@ The diagnostics graph is sequential. Structured patient fields supply calculator
 
 ```mermaid
 flowchart LR
+    extract["Extract document fields"] --> draft
     draft["Saved draft"] --> review["Inspect evidence<br/>Accept · Edit · Reject"]
     review -->|Missing or conflicting information| clarification["Request clarification"]
     clarification -->|Respond or supply calculator inputs| review
@@ -73,6 +75,23 @@ Missing calculator inputs are collected explicitly or the calculator can be skip
 The API rejects stale versions and prevents finalization until every finding has a decision and all clarifications are resolved or skipped. The finalized endpoint returns only accepted findings and reviewer corrections; rejected findings remain in history. Finalized reviews are immutable. **Ask answers remain immediate, model-evaluated responses and are outside this human-review gate.**
 
 Reviewer names are self-declared local identities, carried in server-issued HttpOnly cookie sessions. They are **not verified accounts or clinical sign-off**. The audit hash chain detects edits against the retained chain; it is not an externally anchored, tamper-proof log.
+
+### Document extraction
+
+In **Documents**, extract fields from an existing source, upload a file, or paste document text. Apollo proposes patient details, diagnoses, medications, laboratory results, allergies, dates, and recorded follow-up actions. Each proposal links to its exact source passage. Reviewers can accept, correct structured fields, reject, or request clarification before selecting **Finalize and save fields**.
+
+```mermaid
+flowchart LR
+    source["Existing source · Upload · Paste"] --> parse["Parse document text"]
+    parse --> extract["Extract proposed fields<br/>Exact source spans"]
+    extract --> review["Human review<br/>Accept · Correct · Reject"]
+    review --> finalize["Finalize extraction"]
+    finalize --> record["Reviewed document fields<br/>Patient record + analysis context"]
+```
+
+Approved fields appear in **Overview → Reviewed document fields**, with their source, reviewer, recorded date, and status. Original proposals and corrections remain in the audit history. Historical prescriptions, held medications, and negated diagnoses retain those distinctions; imports do not overwrite the current medication or diagnosis lists. Reimporting the same document and approved values does not duplicate record entries.
+
+The extractor uses conservative English rules for explicit labels, medication lists with doses, and five-column Markdown laboratory tables. It requires no generation key. Ambiguous numeric dates are flagged for confirmation, missing doses are not inferred, and unlabeled narrative may produce no fields. Documents support up to 100,000 characters per extraction; PDF, Word, and image parsing still require the optional local model stack. Uploaded text remains available to retrieval before its structured proposals are approved.
 
 ### Evidence-grounded question answering
 
@@ -199,11 +218,14 @@ uv run --frozen pytest -q
 npm --prefix app/frontend-src run lint
 npm --prefix app/frontend-src run build
 uv run --frozen python -m app.evaluation
+uv run --frozen python -m app.ingestion.evaluate_extraction
 ```
 
 CI checks Python lint, offline tests, and frontend lint/typecheck/build. Tests isolate SQLite, disable credentials and network access, and mock external services. They cover graph routing, streaming, ingestion, evaluation, caching, patient isolation, MCP retrieval, review state transitions, stale edits, reviewer-session enforcement, clarification, and audit integrity.
 
 The offline evaluation harness checks 10 labeled synthetic cases for assertion handling, exact evidence offsets, conflicting records, missing inputs, unsupported drafts, and insufficient-context refusal. This is a policy regression set, not an LLM-quality or clinical validation benchmark.
+
+A separate extraction regression set contains 10 hand-labeled synthetic English documents covering structured fields, assertion status, held and historical medications, dates, duplicate proposals, missing doses, and source offsets. Tests also check known results from the bundled Case A laboratory report. These fixtures do not establish accuracy on arbitrary clinical documents.
 
 ## Project status
 
@@ -214,3 +236,5 @@ Patient management, application tracing, production deployment, and live provide
 ---
 
 README structure inspired by [Healthcare Voice Agent](https://github.com/santiago68310/Healthcare-voice-agent). Human-review design also draws on [Agentic Medical Coding AI](https://github.com/nipa-analytics/agentic-medical-coding-ai). Architecture diagrams describe Apollo's own implementation.
+
+The document-extraction workflow also takes inspiration from [Multi-Intelligence Medical Companion](https://github.com/13139531101/Multi-Intelligence-Medical-Companion). Apollo's English extractor and synthetic extraction fixtures are implemented in this repository.

@@ -4,9 +4,9 @@ import time
 from fastapi import APIRouter, HTTPException, Path
 
 from app.agent.seed_patient import get_case
-from app.review.extraction import with_reviewed_fields
 from app.agent.summarizer import run_summarizer
 from app.models import ClinicalSummary, SummarizeRequest, SummarizeResponse
+from app.review.extraction import with_reviewed_fields
 
 router = APIRouter(prefix="/api/patients", tags=["summarize"])
 

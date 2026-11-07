@@ -6,7 +6,7 @@ Unrecognized prose stays in the document for manual review.
 import re
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from app.agent.sqlite_cache import hash_payload
 
@@ -53,6 +53,14 @@ class ExtractedField(BaseModel):
         for key, choices in CHOICES.get(self.kind, {}).items():
             if self.data.get(key) not in choices:
                 raise ValueError(f"Choose a valid {key}")
+        date_value = self.data.get("value") if self.kind in ("date_of_birth", "document_date") else self.data.get("date")
+        if date_value:
+            try:
+                if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date_value):
+                    raise ValueError("Use YYYY-MM-DD")
+                datetime.strptime(date_value, "%Y-%m-%d")
+            except ValueError as exc:
+                raise ValueError("Dates must be valid calendar dates in YYYY-MM-DD format") from exc
         return self
 
 
@@ -127,7 +135,11 @@ def extract_fields(text: str) -> dict:
     document_date = sample_date = ""
 
     def add(kind, data, line):
-        field = ExtractedField(kind=kind, data=data)
+        try:
+            field = ExtractedField(kind=kind, data=data)
+        except ValidationError:
+            warnings.append(f"A {kind.replace('_', ' ')} field needs manual review; it exceeded the supported format or length.")
+            return
         key = hash_payload(field.model_dump())
         if key not in seen:
             seen.add(key)
@@ -147,7 +159,7 @@ def extract_fields(text: str) -> dict:
                 document_date = parsed
                 add("document_date", {"value": parsed}, line)
 
-    section, historical_meds = "", False
+    section, historical_meds, lab_table = "", False, False
     flag_map = {"H": "high", "L": "low", "HH": "critical_high", "LL": "critical_low", "N": "normal"}
     for line in lines:
         raw = line.group()
@@ -173,11 +185,15 @@ def extract_fields(text: str) -> dict:
                     add(kind, {"value": result}, line)
         if value.startswith("|"):
             cells = [cell.strip().strip("*") for cell in value.strip("|").split("|")]
-            if len(cells) >= 5 and cells[0].lower() not in ("test", "parameter", "analyte", "indicator") and not re.fullmatch(r"[- :]+", cells[0]) and cells[1]:
+            if len(cells) >= 5 and cells[0].lower() in ("test", "test name", "parameter", "analyte", "indicator") and cells[1].lower() in ("result", "value"):
+                lab_table = True
+                continue
+            if lab_table and len(cells) == 5 and not re.fullmatch(r"[- :]+", cells[0]) and cells[0] and cells[1]:
                 add("lab", {"test_name": cells[0], "value": cells[1], "unit": "" if cells[2] == "—" else cells[2],
                             "reference_range": cells[3], "flag": flag_map.get(cells[4].upper(), "not_recorded"),
                             "date": sample_date or document_date}, line)
             continue
+        lab_table = False
         bullet = re.match(r"^(?:[-*•]|\d+[.)])\s+(.+)", value)
         item = bullet.group(1) if bullet else value
         diagnosis = re.match(r"^(?:Diagnosis|Diagnoses):\s*(.+)", item, re.I)

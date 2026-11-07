@@ -12,6 +12,17 @@ from app.review import store
 
 
 def create_extraction(patient_id, source_name, text, patient_name=None):
+    from app.agent.seed_patient import get_case, list_cases
+
+    source_name = source_name.strip()
+    if not source_name:
+        raise HTTPException(422, "Enter a document name")
+    if patient_name is None:
+        for item in list_cases():
+            case = get_case(item["key"])
+            if case["patient_id"] == patient_id:
+                patient_name = case.get("patient", {}).get("name")
+                break
     if not text.strip():
         raise HTTPException(422, "The document has no text to extract")
     if len(text) > 100000:
@@ -26,7 +37,8 @@ def create_extraction(patient_id, source_name, text, patient_name=None):
         if assertion in ("held", "stopped", "recorded"):
             assertion = "documented"
         if kind == "patient_name" and patient_name:
-            normalize = lambda value: re.sub(r"\b(?:mr|mrs|ms|dr)\.?|[^a-z]+", "", value.casefold())
+            def normalize(value):
+                return re.sub(r"\b(?:mr|mrs|ms|dr)\b\.?|[^a-z]+", "", value.casefold())
             if normalize(data["value"]) != normalize(patient_name):
                 assertion = "conflicting"
         findings.append({"id": f"extracted-{hash_payload([kind, data])[:24]}", "kind": "extraction",
@@ -47,6 +59,10 @@ def create_extraction(patient_id, source_name, text, patient_name=None):
         if len(group) > 1:
             for finding in group:
                 finding["assertion"] = "conflicting"
+    if any(f["extracted"]["kind"] == "patient_name" and f["assertion"] == "conflicting" for f in findings):
+        result["warnings"].append("The document patient name differs from this record. Verify the patient assignment before correcting or rejecting its fields.")
+        for finding in findings:
+            finding["assertion"] = "conflicting"
     metadata = {key: value for key, value in result.items() if key != "fields"}
     metadata["source_name"] = source_name
     return store.create_run({"patient_id": patient_id}, metadata, sources, findings, [], kind="extraction")
@@ -77,7 +93,9 @@ def commit_fields(conn, run, reviewer):
                               (key, run["patient_id"], json.dumps(dict(record, id=key))))
         count += cursor.rowcount
     # Only invalidate inside the same transaction as committing reviewed fields.
-    conn.execute("DELETE FROM rag_answer_cache WHERE patient_id = ?", (run["patient_id"],))
+    prefix = f"{run['patient_id']}:"
+    conn.execute("DELETE FROM rag_answer_cache WHERE patient_id = ? OR substr(patient_id, 1, ?) = ?",
+                 (run["patient_id"], len(prefix), prefix))
     return count
 
 
@@ -103,3 +121,23 @@ def reviewed_context(fields):
     for field in fields:
         lines.append(f"Source: {field['source_name']} | Review: {field['run_id']} | {describe(field['kind'], field['data'])}")
     return "\n".join(lines)
+
+
+def reviewed_chunks(fields, patient_id, question):
+    """Keep relevant approved values visible within the RAG prompt's per-chunk limit."""
+    words = set(re.findall(r"[a-z0-9]+", question.casefold())) - {
+        "the", "a", "an", "is", "are", "was", "what", "which", "patient", "this", "for", "and", "of", "to",
+    }
+    ranked = []
+    for field in fields:
+        content = describe(field["kind"], field["data"])
+        tokens = set(re.findall(r"[a-z0-9]+", f"{field['kind']} {content}".casefold()))
+        relevance = len(words & tokens)
+        if relevance:
+            ranked.append((relevance, field, content))
+    ranked.sort(key=lambda item: item[0], reverse=True)
+    return [{"chunk_id": f"reviewed-{field['id']}", "patient_id": patient_id,
+             "source_doc": f"{field['source_name']} (reviewed)", "doc_type": "reviewed_document_field",
+             "text": "REVIEWED DOCUMENT FIELD — retain its recorded date and status; this does not replace current medication lists.\n"
+                     f"{content}\nReviewer: {field['reviewer']['name']} | Review: {field['run_id']}",
+             "score": 998.0} for _, field, content in ranked[:3]]

@@ -419,6 +419,10 @@ def context_assembler_node(state: RAGState) -> dict:
         if summary_chunk:
             seen.add(summary_chunk["text"][:80])
             merged.append(summary_chunk)
+        from app.review.extraction import reviewed_chunks
+
+        merged.extend(reviewed_chunks(state.patient_data.get("summary", {}).get("reviewed_fields", []),
+                                      state.patient_id, state.question))
 
     for chunk in state.patient_chunks + state.research_chunks + state.web_chunks:
         key = chunk.get("text", "")[:80]

@@ -5,8 +5,8 @@ from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
 from app.config import settings
 from app.ingestion.structured import ExtractionRequest
 from app.review import store
-from app.review.extraction import create_extraction, reviewed_fields
 from app.review.clarification import resolve_calculator, resolve_finding
+from app.review.extraction import create_extraction, reviewed_fields
 from app.review.models import (
     ClarificationRequest,
     DecisionRequest,
@@ -54,12 +54,7 @@ def runs(patient_id: str, kind: Literal["analysis", "extraction"] = "analysis"):
 
 @router.post("/patients/{patient_id}/extract", dependencies=[Depends(same_origin)])
 def extract(patient_id: str, body: ExtractionRequest):
-    from app.agent.seed_patient import list_cases, get_case
-
-    case = next((get_case(item["key"]) for item in list_cases()
-                 if get_case(item["key"])["patient_id"] == patient_id), None)
-    return create_extraction(patient_id, body.source_name, body.text,
-                             case.get("patient", {}).get("name") if case else None)
+    return create_extraction(patient_id, body.source_name, body.text)
 
 
 @router.get("/patients/{patient_id}/fields")

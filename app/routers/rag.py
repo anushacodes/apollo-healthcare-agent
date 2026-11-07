@@ -160,6 +160,13 @@ async def ingest_document(patient_id: str, file: UploadFile = File(...)):
         # Chunk and Embed
         chunks = chunk_text(result.text, patient_id, filename)
         if not chunks:
+            from app.ingestion.structured import extract_fields
+
+            if result.text.strip() and len(result.text) <= 100000 and extract_fields(result.text)["fields"]:
+                review_run = await asyncio.to_thread(create_extraction, patient_id, filename, result.text)
+                return {"status": "success", "file": filename, "chunks_indexed": 0, "chunks_embedded": 0,
+                        "review_run": review_run, "extraction_warning":
+                        "Document is too short for search. Extracted fields are ready for review."}
             raise HTTPException(status_code=422, detail="No indexable text found in this document")
         upserted = await embed_chunks_async(chunks)
         mark_document_indexed(
@@ -171,6 +178,10 @@ async def ingest_document(patient_id: str, file: UploadFile = File(...)):
 
         # Retrieval keeps its existing upload behavior. Structured proposals remain a draft
         # until a named reviewer decides every field and finalizes the extraction.
+        if len(result.text) > 100000:
+            return {"status": "success", "file": filename, "chunks_indexed": len(chunks),
+                    "chunks_embedded": upserted, "extraction_warning":
+                    "Document is ready for search. For structured review, split its text into sections under 100,000 characters."}
         review_run = await asyncio.to_thread(create_extraction, patient_id, filename, result.text)
         return {"status": "success", "file": filename, "chunks_indexed": len(chunks),
                 "chunks_embedded": upserted, "review_run": review_run}
