@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 import uuid
 from typing import Any
 
@@ -24,12 +25,15 @@ _COLLECTION  = "apollo_documents"
 
 _client: QdrantClient | None = None
 _encoder = None  # lazy-loaded SentenceTransformer
+_retry_client_after = 0.0
 
 
 def _get_client() -> QdrantClient | None:
-    global _client
+    global _client, _retry_client_after
     if _client is not None:
         return _client
+    if time.monotonic() < _retry_client_after:
+        return None
     try:
         _client = QdrantClient(
             url=settings.qdrant_url,
@@ -41,6 +45,7 @@ def _get_client() -> QdrantClient | None:
     except Exception as exc:
         log.warning("[embedder] Qdrant unavailable (%s) — embedding skipped", exc)
         _client = None
+        _retry_client_after = time.monotonic() + 30
     return _client
 
 
@@ -82,13 +87,27 @@ def embed_chunks(chunks: list[dict[str, Any]]) -> int:
     """
     from app.agent.sqlite_cache import upsert_chunk_records  # avoid circular at module level
 
+    if not chunks:
+        return 0
+    # Sparse retrieval must remain available even when dense dependencies fail.
+    upsert_chunk_records(chunks)
     client = _get_client()
-    encoder = _get_encoder()
+    encoder = _get_encoder() if client is not None else None
     if client is None or encoder is None:
         log.warning("[embedder] Skipping embed — Qdrant or encoder unavailable")
         return 0
 
     _ensure_collection(client)
+    # Keep dense results consistent with replacement of the sparse document.
+    for patient_id, source_doc in {(c["patient_id"], c["source_doc"]) for c in chunks}:
+        client.delete(
+            collection_name=_COLLECTION,
+            points_selector=Filter(must=[
+                FieldCondition(key="patient_id", match=MatchValue(value=patient_id)),
+                FieldCondition(key="source_doc", match=MatchValue(value=source_doc)),
+            ]),
+            wait=True,
+        )
 
     ENCODE_BATCH = 16   # keeps peak RAM flat; each batch GC'd before next
     UPSERT_BATCH = 50
@@ -105,7 +124,7 @@ def embed_chunks(chunks: list[dict[str, Any]]) -> int:
 
         points = [
             PointStruct(
-                id=_chunk_id(c["text"]),
+                id=c["chunk_id"],
                 vector=vec,
                 payload={
                     "chunk_id":    c["chunk_id"],
@@ -127,8 +146,6 @@ def embed_chunks(chunks: list[dict[str, Any]]) -> int:
             except Exception as exc:
                 log.error("[embedder] Upsert failed at i=%d j=%d: %s", i, j, exc)
 
-        # Mirror to SQLite FTS before next batch (keeps memory flat)
-        upsert_chunk_records(batch)
         del vectors, points  # free memory before next iteration
 
     log.info("[embedder] Upserted %d/%d chunks for patient %s",
@@ -155,7 +172,7 @@ def search_chunks(
     from app.agent.sqlite_cache import search_chunk_records  # avoid circular at module level
 
     client = _get_client()
-    encoder = _get_encoder()
+    encoder = _get_encoder() if client is not None else None
 
     rrf_k = 60
     scores: dict[str, float] = {}

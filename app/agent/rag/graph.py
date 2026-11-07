@@ -94,7 +94,6 @@ async def run_rag_streaming(
     cached_answer    = await asyncio.to_thread(get_answer, cache_patient_id, question)
     if cached_answer:
         log.info("[rag] cache hit for patient %s", patient_id)
-        await asyncio.sleep(2)
         yield {"type": "done", "node": "cache", "message": "Response ready", "data": cached_answer}
         return
 
@@ -158,7 +157,11 @@ async def run_rag_streaming(
                     "is_refusal":     accumulated.get("is_refusal", False),
                     "follow_ups":     follow_ups,
                 }
-                if not accumulated.get("is_refusal", True):
+                scores = accumulated.get("eval_scores", {})
+                if (not accumulated.get("is_refusal", True)
+                        and not scores.get("skipped", False)
+                        and not scores.get("hallucination_detected", False)
+                        and scores.get("faithfulness", 0) >= 0.70):
                     await asyncio.to_thread(set_answer, cache_patient_id, question, result_data)
 
                 yield {

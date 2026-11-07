@@ -21,7 +21,6 @@ from app.ingestion.embedder import embed_chunks_async, search_chunks_async
 from app.llm_client import (
     call_llm_json,
     call_llm_text,
-    get_groq_client,
     get_structured_groq_client,
 )
 from app.mcp.client import call_search_clinical_guidelines
@@ -98,6 +97,7 @@ def _patient_cache_id(patient_id: str, patient_data: dict) -> str:
         {
             "patient": patient_data.get("patient", {}),
             "summary": patient_data.get("summary", {}),
+            "source_documents": patient_data.get("source_documents", {}),
         }
     )[:12]
     return f"{patient_id}:{fingerprint}"
@@ -473,7 +473,7 @@ def generator_node(state: RAGState) -> dict:
         )
     except Exception as exc:
         log.error("[rag] Generator failed: %s", exc)
-        answer = f"Generation error: {exc}"
+        raise RuntimeError("Answer generation failed. Check the configured LLM provider and try again.") from exc
 
     citations = []
     for i, c in enumerate(chunks, 1):
@@ -512,16 +512,19 @@ def eval_node(state: RAGState) -> dict:
     hallu   = scores.get("hallucination_detected", False)
 
     generator_version = state.prompt_versions.get("generator")
-    if generator_version:
+    if generator_version and not scores.get("skipped"):
         record_eval("generator", generator_version, faithfulness=faith, hallucination_detected=hallu)
 
     final = state.raw_answer
-    if faith < 0.70 or hallu:
+    if scores.get("skipped"):
+        final += "\n\nEvaluation unavailable — this answer has not been verified against its sources."
+    elif faith < 0.70 or hallu:
         final += f"\n\n⚠️ **Eval Agent Warning:** Faithfulness is low ({faith:.0%}).\n"
         if scores.get("unsupported_claims"):
             final += "Unsupported claims:\n" + "\n".join(f"• {c}" for c in scores.get("unsupported_claims", []))
 
     result = _ev("eval_agent", "result",
+                 "Evaluation unavailable" if scores.get("skipped") else
                  f"Faithfulness: {faith:.0%} | {'Hallucination ⚠' if hallu else 'Verified ✓'}",
                  scores)
 
