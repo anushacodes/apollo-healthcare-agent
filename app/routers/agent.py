@@ -4,6 +4,7 @@ import logging
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 
 from app.agent.seed_patient import get_case, list_cases
+from app.review.extraction import with_reviewed_fields
 from app.review.workflow import run_reviewable_analysis as run_graph_streaming
 
 log = logging.getLogger(__name__)
@@ -22,7 +23,7 @@ async def get_case_data(case_key: str):
     case = get_case(case_key)
     if not case:
         raise HTTPException(status_code=404, detail=f"Case '{case_key}' not found.")
-    return case
+    return with_reviewed_fields(case)
 
 
 @router.websocket("/run/{patient_id}")

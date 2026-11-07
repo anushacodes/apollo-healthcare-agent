@@ -9,6 +9,7 @@ from app.agent.rag.graph import run_rag_streaming
 from app.agent.seed_patient import get_case
 from app.agent.sqlite_cache import hash_text, mark_document_indexed
 from app.config import settings
+from app.review.extraction import create_extraction, with_reviewed_fields
 
 _UPLOAD_CHUNK_SIZE = 1024 * 1024
 
@@ -57,6 +58,7 @@ async def rag_stream(websocket: WebSocket, patient_id: str):
             patient_data = {"patient_id": patient_id, "patient": {}, "summary": {}, "source_documents": {}}
 
         patient_data.setdefault("patient_id", patient_id)
+        patient_data = await asyncio.to_thread(with_reviewed_fields, patient_data)
 
         async for event in run_rag_streaming(patient_id, patient_data, question):
             await websocket.send_json(event)
@@ -167,8 +169,11 @@ async def ingest_document(patient_id: str, file: UploadFile = File(...)):
             chunk_count=len(chunks),
         )
 
+        # Retrieval keeps its existing upload behavior. Structured proposals remain a draft
+        # until a named reviewer decides every field and finalizes the extraction.
+        review_run = await asyncio.to_thread(create_extraction, patient_id, filename, result.text)
         return {"status": "success", "file": filename, "chunks_indexed": len(chunks),
-                "chunks_embedded": upserted}
+                "chunks_embedded": upserted, "review_run": review_run}
     except HTTPException:
         raise
     except Exception as exc:

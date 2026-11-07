@@ -4,6 +4,7 @@ import time
 from fastapi import APIRouter, HTTPException, Path
 
 from app.agent.seed_patient import get_case
+from app.review.extraction import with_reviewed_fields
 from app.agent.summarizer import run_summarizer
 from app.models import ClinicalSummary, SummarizeRequest, SummarizeResponse
 
@@ -41,7 +42,7 @@ def _resolve_patient(patient_id: str, body: SummarizeRequest | None) -> dict:
     # Try demo seed cases first (case_a, case_b, case_c)
     case = get_case(patient_id)
     if case:
-        return case
+        return with_reviewed_fields(case)
 
     # Future: load from database by patient_id
     raise HTTPException(
