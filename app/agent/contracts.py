@@ -7,6 +7,7 @@ untyped dicts via `.get(...)` with silent fallbacks.
 
 
 from typing import Any
+
 from pydantic import BaseModel, Field, model_validator
 
 
@@ -88,6 +89,7 @@ class FollowUpQuestions(BaseModel):
 
 
 class EvalScores(BaseModel):
+    skipped: bool = False
     faithfulness:           float = 1.0
     context_relevance:      float = 1.0
     answer_completeness:    float = 1.0

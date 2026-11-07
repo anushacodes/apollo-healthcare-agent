@@ -62,15 +62,17 @@ async def run_graph_streaming(patient_data: dict) -> AsyncGenerator[dict, None]:
         "error":              None,
     }
 
+    full_audit_log: list[str] = []
     async for event in graph.astream(initial_state):
         for node_name, node_state in event.items():
             audit_log    = node_state.get("audit_log", [])
             latest_entry = audit_log[-1] if audit_log else ""
+            full_audit_log.extend(audit_log)
 
             payload: dict[str, Any] = {
                 "node":        node_name,
                 "audit_entry": latest_entry,
-                "audit_log":   audit_log,
+                "audit_log":   list(full_audit_log),
             }
 
             if node_name == "orchestrator":

@@ -101,6 +101,14 @@ def build_context(patient_data: dict) -> str:
             lines.append(f"  ⚠ {text}")
         lines.append("")
 
+    for key, label in (
+        ("agent_diagnoses", "DIAGNOSTIC AGENT FINDINGS"),
+        ("calculator_results", "CALCULATOR RESULTS"),
+        ("drug_interactions", "MEDICATION ANALYSIS"),
+    ):
+        if patient_data.get(key):
+            lines.append(f"{label}:\n{json.dumps(patient_data[key], default=str)}\n")
+
     return "\n".join(lines)
 
 def _call_groq(context: str) -> dict[str, Any]:
@@ -179,7 +187,7 @@ def _fallback_summary(patient_data: dict, patient_id: str, model_used: str) -> C
         current_medications = [str(m) for m in medications[:8]]
 
     key_concerns = [
-        f.get("text", str(f))
+        f.get("text", str(f)) if isinstance(f, dict) else str(f)
         for f in flags[:5]
         if isinstance(f, dict) or str(f).strip()
     ]
@@ -196,7 +204,7 @@ def _fallback_summary(patient_data: dict, patient_id: str, model_used: str) -> C
         chief_complaint=narrative.split(".")[0].strip() or f"Follow-up for {primary_dx}.",
         history_of_present_illness=narrative or f"The patient has active issues related to {primary_dx}.",
         clinical_assessment=(
-            f"Known active problems include {', '.join(str(d.get('name', d)) for d in diagnoses[:4])}."
+            f"Known active problems include {', '.join(str(d.get('name', d)) if isinstance(d, dict) else str(d) for d in diagnoses[:4])}."
             if diagnoses else "Active clinical problems are summarised from the available record."
         ),
         current_medications=current_medications,

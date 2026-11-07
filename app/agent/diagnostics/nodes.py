@@ -12,9 +12,9 @@ from app.agent.diagnostics.state import AgentState
 from app.agent.drug_interaction_agent import run_drug_interaction_agent
 from app.agent.sqlite_cache import get_node_cache, hash_payload, set_node_cache
 from app.agent.summarizer import build_context, run_summarizer
-from app.agent.tools import TOOL_MAP
 from app.config import settings
 from app.llm_client import call_llm_json, get_structured_groq_client
+from app.review.calculators import execute_call
 
 log = logging.getLogger(__name__)
 
@@ -102,51 +102,39 @@ def _extract_structured_params(patient_data: dict) -> dict:
     tc  = hints.get("total_cholesterol") or _lab_val(labs, "total cholesterol", "cholesterol total", "tc")
     hdl = hints.get("hdl_cholesterol")   or _lab_val(labs, "hdl", "hdl cholesterol", "hdl-c")
     sbp = hints.get("systolic_bp")       or _lab_val(labs, "systolic bp", "sbp", "systolic blood pressure")
-    race     = hints.get("race", "white")
     on_bp_tx = any(kw in m for m in meds for kw in
                    ["ramipril", "lisinopril", "amlodipine", "atenolol",
                     "metoprolol", "losartan", "perindopril", "bisoprolol"])
-    is_smoker    = any(kw in s.get("summary_narrative", "").lower() for kw in ["smok", "tobacco", "cigarette"])
-    has_diabetes = any("diabetes" in d or "type 2" in d for d in dx)
+    # Absence of a mention is not a negative finding. Ask for unrecorded criteria.
+    is_smoker = hints.get("is_smoker")
+    has_diabetes = hints.get("has_diabetes")
+    if has_diabetes is None and any(
+        isinstance(d, dict) and ("diabetes" in d.get("name", "").lower()) and
+        not any(word in d.get("status", "").lower() for word in ("ruled out", "resolved", "suspected"))
+        for d in s.get("diagnoses", [])
+    ):
+        has_diabetes = True
+    on_bp_tx = hints.get("on_bp_treatment", True if on_bp_tx else None)
 
-    if age and tc and hdl and sbp and sex in ("male", "female"):
-        params["ascvd_risk_calculator"] = {
-            "age": int(age), "total_cholesterol": tc, "hdl_cholesterol": hdl,
+    if tc or hdl or sbp:
+        values = {
+            "age": int(age) if age else None, "total_cholesterol": tc, "hdl_cholesterol": hdl,
             "systolic_bp": sbp, "on_bp_treatment": on_bp_tx, "is_smoker": is_smoker,
-            "has_diabetes": has_diabetes, "sex": sex, "race": race,
+            "has_diabetes": has_diabetes, "sex": sex if sex in ("male", "female") else None,
+            "race": hints.get("race"),
         }
+        params["ascvd_risk_calculator"] = {k: v for k, v in values.items() if v is not None}
 
-    # Wells DVT
-    narrative     = s.get("summary_narrative", "").lower()
-    active_cancer = any("cancer" in d or "malignan" in d or "lymphoma" in d
-                        or "leukaemia" in d or "leukemia" in d for d in dx)
-    bedridden   = any(kw in narrative for kw in ["bedridden", "post-op", "post op", "surgical", "immobil"])
-    leg_swollen = any(kw in narrative for kw in ["leg swollen", "ankle oedema", "ankle edema", "calf swelling"])
-    prev_dvt    = any(kw in narrative for kw in ["previous dvt", "prior dvt", "history of dvt", "prior pe"])
-
-    if any(kw in narrative for kw in ["dvt", "deep vein", "thrombosis", "pe ", "embolism", "emboli"]) or \
-       any(kw in d for d in dx for kw in ["dvt", "thrombosis", "embolism", "pe"]):
-        params["wells_dvt_score"] = hints.get("wells_dvt_score", {}) or {
-            "active_cancer":                  active_cancer,
-            "bedridden_3_days_or_surgery_12wk": bedridden,
-            "entire_leg_swollen":             leg_swollen,
-            "previous_dvt":                   prev_dvt,
-            "alternative_diagnosis_as_likely": False,
-        }
-
-    # CHA₂DS₂-VASc
-    has_af = any(kw in narrative or kw in d for d in dx for kw in ["atrial fibrillation", "af ", "afib"])
-    if has_af and age:
-        params["cha2ds2_vasc_score"] = hints.get("cha2ds2_vasc_score", {}) or {
-            "congestive_heart_failure": any("heart failure" in d or "hfref" in d or "hfpef" in d for d in dx),
-            "hypertension":             any("hypertension" in d for d in dx),
-            "age_75_or_over":           int(age) >= 75,
-            "diabetes":                 has_diabetes,
-            "vascular_disease":         any(kw in d for d in dx for kw in
-                                            ["coronary", "peripheral artery", "mi ", "myocardial"]),
-            "age_65_to_74":             65 <= int(age) <= 74,
-            "female_sex":               sex == "female",
-        }
+    # Only explicit criterion values are safe to use for these calculators.
+    narrative = s.get("summary_narrative", "").lower()
+    if hints.get("wells_dvt_score") is not None or any(
+        kw in narrative for kw in ("dvt", "deep vein", "thrombosis", "embolism", "emboli")
+    ):
+        params["wells_dvt_score"] = hints.get("wells_dvt_score", {})
+    if hints.get("cha2ds2_vasc_score") is not None or any(
+        "atrial fibrillation" in d or "afib" in d for d in dx
+    ):
+        params["cha2ds2_vasc_score"] = hints.get("cha2ds2_vasc_score", {})
 
     return params
 
@@ -240,6 +228,8 @@ def diagnosis_node(state: AgentState) -> dict:
     """Runs after drug_graph_node so kg_matches are available."""
     log.info("[diagnosis_node] Running")
     enriched_context = state.anonymized_notes
+    if state.calculator_results:
+        enriched_context += "\n\nCALCULATOR RESULTS:\n" + json.dumps(state.calculator_results)
     for match in state.kg_matches[:3]:
         condition_data = kg_loader.get_condition(match["condition"])
         if condition_data:
@@ -297,19 +287,7 @@ def tool_node(state: AgentState) -> dict:
     results = []
 
     for call in calculator_calls:
-        tool_name = call.get("tool")
-        tool_fn   = TOOL_MAP.get(tool_name)
-        if tool_fn is None:
-            results.append({"tool": tool_name, "error": "Tool not found"})
-            continue
-        try:
-            results.append({"tool": tool_name, "result": tool_fn(**call.get("params", {}))})
-        except Exception as exc:
-            err_str = str(exc)
-            if "validation error" in err_str.lower():
-                results.append({"tool": tool_name, "error": "Insufficient patient data to run this calculator (missing required lab values or demographics)."})
-            else:
-                results.append({"tool": tool_name, "error": err_str})
+        results.append(execute_call(call.get("tool", ""), call.get("params", {})))
 
     tool_names  = [r["tool"] for r in results]
     audit_entry = f"Tool Node: ran {len(results)} calculator(s): {', '.join(tool_names) or 'none'}."

@@ -50,6 +50,20 @@ def init_db() -> None:
         with _get_conn() as conn:
             conn.executescript(
                 """
+                CREATE TABLE IF NOT EXISTS review_runs (
+                    id TEXT PRIMARY KEY, patient_id TEXT NOT NULL,
+                    created_at TEXT NOT NULL, version INTEGER NOT NULL, state JSON NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS review_patient_runs ON review_runs(patient_id, created_at);
+                CREATE TABLE IF NOT EXISTS review_events (
+                    seq INTEGER PRIMARY KEY AUTOINCREMENT, run_id TEXT NOT NULL,
+                    payload JSON NOT NULL, previous_hash TEXT NOT NULL, hash TEXT NOT NULL,
+                    FOREIGN KEY(run_id) REFERENCES review_runs(id)
+                );
+                CREATE TABLE IF NOT EXISTS reviewer_sessions (
+                    token_hash TEXT PRIMARY KEY, reviewer_id TEXT NOT NULL,
+                    name TEXT NOT NULL, expires_at REAL NOT NULL
+                );
                 CREATE TABLE IF NOT EXISTS rag_answer_cache (
                     patient_id TEXT,
                     question TEXT,
@@ -281,6 +295,10 @@ def mark_document_indexed(
                 """,
                 (patient_id, source_doc, content_hash, chunk_count, time.time()),
             )
+            conn.execute(
+                "DELETE FROM rag_answer_cache WHERE patient_id = ? OR substr(patient_id, 1, ?) = ?",
+                (patient_id, len(patient_id) + 1, patient_id + ":"),
+            )
     except Exception as exc:
         log.error("[sqlite_cache] mark_document_indexed error: %s", exc)
 
@@ -305,6 +323,18 @@ def upsert_chunk_records(chunks: Iterable[dict[str, Any]]) -> None:
 
     try:
         with _get_conn() as conn:
+            # Each call contains complete documents, so replacement removes stale
+            # chunks when a shorter revision is uploaded under the same filename.
+            for patient_id, source_doc in {(row[1], row[2]) for row in rows}:
+                conn.execute(
+                    "DELETE FROM chunk_fts WHERE chunk_key IN "
+                    "(SELECT chunk_key FROM chunk_cache WHERE patient_id = ? AND source_doc = ?)",
+                    (patient_id, source_doc),
+                )
+                conn.execute(
+                    "DELETE FROM chunk_cache WHERE patient_id = ? AND source_doc = ?",
+                    (patient_id, source_doc),
+                )
             conn.executemany(
                 """
                 INSERT INTO chunk_cache (
@@ -331,6 +361,15 @@ def upsert_chunk_records(chunks: Iterable[dict[str, Any]]) -> None:
             )
     except Exception as exc:
         log.error("[sqlite_cache] upsert_chunk_records error: %s", exc)
+
+
+def list_document_sources(patient_id: str) -> list[str]:
+    with _get_conn() as conn:
+        rows = conn.execute(
+            "SELECT DISTINCT source_doc FROM chunk_cache WHERE patient_id = ? ORDER BY source_doc",
+            (patient_id,),
+        ).fetchall()
+    return [row["source_doc"] for row in rows]
 
 
 def _fts_query(value: str) -> str:

@@ -63,6 +63,10 @@ def run_eval(
     """
     if not answer or answer.strip().startswith("Generation error:") or answer.strip().startswith("No relevant sources"):
         return EvalScores(
+            skipped=True,
+            faithfulness=0.0,
+            context_relevance=0.0,
+            answer_completeness=0.0,
             evaluation_notes=answer or "No answer provided.",
         ).model_dump()
 
@@ -110,11 +114,18 @@ def run_eval(
         except Exception as exc:
             log.error("[eval] Scoring failed: %s", exc)
             return EvalScores(
+                skipped=True,
+                faithfulness=0.0,
+                context_relevance=0.0,
+                answer_completeness=0.0,
                 evaluation_notes=f"Eval agent unavailable: {exc}",
             ).model_dump()
 
     if result is None:
-        return EvalScores(evaluation_notes="Eval agent unavailable.").model_dump()
+        return EvalScores(
+            skipped=True, faithfulness=0.0, context_relevance=0.0, answer_completeness=0.0,
+            evaluation_notes="Eval agent unavailable.",
+        ).model_dump()
 
     log.info(
         "[eval] faith=%.2f relevance=%.2f completeness=%.2f hallucination=%s",
