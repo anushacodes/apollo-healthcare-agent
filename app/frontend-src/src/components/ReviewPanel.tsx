@@ -3,7 +3,7 @@ import { reviewRequest } from '../api'
 import type { Reviewer, ReviewRun, ReviewAction, ReviewEvidence, ReviewClarification } from '../types'
 
 const LABELS: Record<string, string> = {
-  conflicting: 'Conflicting records', documented: 'Documented', suspected: 'Suspected', historical: 'Historical', negated: 'Negated',
+  unavailable: 'Unavailable', conflicting: 'Conflicting records', documented: 'Documented', suspected: 'Suspected', historical: 'Historical', negated: 'Negated',
   ai_suggested: 'AI suggested', computed: 'Calculated', reviewer_supplied: 'Reviewer supplied',
   pending: 'Needs review', accepted: 'Accepted', edited: 'Edited', rejected: 'Rejected',
   clarification_requested: 'Needs clarification',
