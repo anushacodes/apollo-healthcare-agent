@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from './api'
 import { PatientHeader } from './components/PatientHeader'
 import { Sidebar } from './components/Sidebar'
@@ -11,69 +11,85 @@ import type { CaseListItem, PatientData } from './types'
 type TabId = 'summary' | 'diagnostics' | 'ask' | 'documents'
 
 const TABS: { id: TabId; label: string }[] = [
-  { id: 'summary', label: 'Summary' },
-  { id: 'diagnostics', label: 'Diagnostics' },
+  { id: 'summary', label: 'Overview' },
+  { id: 'diagnostics', label: 'Analysis' },
   { id: 'ask', label: 'Ask' },
   { id: 'documents', label: 'Documents' },
 ]
 
 export default function App() {
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [cases, setCases] = useState<CaseListItem[]>([])
   const [patient, setPatient] = useState<PatientData | null>(null)
   const [activeTab, setActiveTab] = useState<TabId>('summary')
-  const [kgStatus, setKgStatus] = useState('Knowledge base — checking…')
+  const [loadError, setLoadError] = useState('')
+  const selectionRef = useRef(0)
 
   useEffect(() => {
-    api
-      .getCases()
-      .then(setCases)
-      .catch(() => setCases([{ key: 'case_a', label: 'Case A — James Hartwell (SLE / Lupus Nephritis)' }]))
-
-    api
-      .getKgStatus()
-      .then((s) => setKgStatus(`Knowledge base — ${s.local_conditions} conditions`))
-      .catch(() => setKgStatus('Knowledge base unavailable'))
-
     const params = new URLSearchParams(window.location.search)
     const caseParam = params.get('case') || (params.get('demo') === 'true' ? 'case_a' : null)
+    api
+      .getCases()
+      .then((items) => {
+        setCases(items)
+        if (!caseParam && items.length) selectCase(items[0].key)
+      })
+      .catch(() => setLoadError('Could not load patients. Please reload to try again.'))
+
     if (caseParam) selectCase(caseParam)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function selectCase(key: string) {
+    const selection = ++selectionRef.current
+    setLoadError('')
+    setSidebarOpen(false)
     api
       .getCaseData(key)
       .then((data) => {
+        if (selection !== selectionRef.current) return
         data._caseKey = key
         setPatient(data)
         setActiveTab('summary')
         history.replaceState(null, '', `?case=${key}`)
       })
-      .catch((err) => console.error('[app] failed to load case', key, err))
+      .catch(() => {
+        if (selection === selectionRef.current) setLoadError('Could not load this patient. Choose a patient to try again.')
+      })
   }
 
   return (
-    <div className="flex h-screen bg-paper font-sans text-ink">
-      <Sidebar cases={cases} activeKey={patient?._caseKey || null} onSelect={selectCase} kgStatus={kgStatus} />
+    <div className="flex h-dvh flex-col bg-paper font-sans text-ink lg:flex-row">
+      <div className="flex shrink-0 items-center justify-between border-b border-rule bg-sheet px-4 py-3 lg:hidden">
+        <span className="font-serif text-xl font-semibold">Apollo</span>
+        <button className="secondary-button" aria-expanded={sidebarOpen} aria-controls="patient-selector" onClick={() => setSidebarOpen(!sidebarOpen)}>
+          {sidebarOpen ? 'Hide patients' : 'Choose patient'}
+        </button>
+      </div>
+      <div id="patient-selector" className={`${sidebarOpen ? 'block' : 'hidden'} shrink-0 lg:block lg:h-full`}>
+        <Sidebar cases={cases} activeKey={patient?._caseKey || null} onSelect={selectCase} />
+      </div>
 
-      <main className="flex min-w-0 flex-1 flex-col">
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col">
+        {loadError && <p role="alert" className="border-b border-critical/30 p-4 text-base text-critical">{loadError}</p>}
         {!patient ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
-            <p className="text-sm text-ink/50">Select a demo patient from the sidebar to get started.</p>
+            <p className="text-base text-muted">Choose a patient to view their records.</p>
           </div>
         ) : (
           <>
             <PatientHeader patient={patient} />
 
-            <nav className="flex gap-6 border-b border-rule bg-sheet px-6">
+            <nav aria-label="Patient sections" className="flex shrink-0 gap-6 overflow-x-auto border-b border-rule bg-sheet px-4 sm:px-6">
               {TABS.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`border-b-2 py-3 text-sm transition-colors ${
+                  aria-current={activeTab === tab.id ? 'page' : undefined}
+                  className={`min-h-12 shrink-0 border-b-2 px-1 py-3 text-base transition-colors ${
                     activeTab === tab.id
                       ? 'border-accent font-medium text-accent'
-                      : 'border-transparent text-ink/50 hover:text-ink'
+                      : 'border-transparent text-muted hover:text-ink'
                   }`}
                 >
                   {tab.label}
@@ -81,11 +97,11 @@ export default function App() {
               ))}
             </nav>
 
-            <div key={activeTab} className="tab-enter min-h-0 flex-1 overflow-y-auto">
+            <div key={`${patient.patient_id}:${activeTab}`} className="tab-enter min-h-0 flex-1 overflow-y-auto">
               {activeTab === 'summary' && <SummaryTab patient={patient} />}
               {activeTab === 'diagnostics' && <DiagnosticsTab patient={patient} />}
               {activeTab === 'ask' && <AskTab patient={patient} />}
-              {activeTab === 'documents' && <DocumentsTab patient={patient} isDemo={Boolean(patient._caseKey)} />}
+              {activeTab === 'documents' && <DocumentsTab patient={patient} readOnly={Boolean(patient._caseKey)} />}
             </div>
           </>
         )}

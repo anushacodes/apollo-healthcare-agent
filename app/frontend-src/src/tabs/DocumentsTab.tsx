@@ -7,11 +7,10 @@ interface QueueItem {
   status: 'uploading' | 'done' | 'error'
 }
 
-export function DocumentsTab({ patient, isDemo }: { patient: PatientData; isDemo: boolean }) {
+export function DocumentsTab({ patient, readOnly }: { patient: PatientData; readOnly: boolean }) {
   const [queue, setQueue] = useState<QueueItem[]>([])
-  const [dragOver, setDragOver] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
-  const docs = patient.source_documents || []
+  const docs = Object.entries(patient.source_documents || {})
 
   async function handleFiles(files: File[]) {
     for (const file of files) {
@@ -26,82 +25,33 @@ export function DocumentsTab({ patient, isDemo }: { patient: PatientData; isDemo
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 p-6">
-      <h2 className="font-serif text-lg text-ink">Documents</h2>
-
-      <div
-        onDragOver={(e) => {
-          e.preventDefault()
-          if (!isDemo) setDragOver(true)
-        }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={(e) => {
-          e.preventDefault()
-          setDragOver(false)
-          if (!isDemo) handleFiles(Array.from(e.dataTransfer.files))
-        }}
-        onClick={() => !isDemo && inputRef.current?.click()}
-        className={`border-2 border-dashed p-10 text-center transition-colors ${
-          isDemo
-            ? 'cursor-not-allowed border-rule bg-sheet opacity-50'
-            : dragOver
-              ? 'border-accent bg-accent-subtle'
-              : 'cursor-pointer border-rule bg-sheet hover:border-accent/50'
-        }`}
-      >
-        <p className="text-sm font-medium text-ink/80">Drop patient documents here</p>
-        <p className="text-xs text-ink/50">or click to browse — PDF, image, or text files</p>
-        <input
-          ref={inputRef}
-          type="file"
-          multiple
-          hidden
-          disabled={isDemo}
-          accept=".pdf,.jpg,.jpeg,.png,.tiff,.txt,.docx"
-          onChange={(e) => {
+    <div className="page-content space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="font-serif text-2xl font-semibold">Documents</h2>
+        {!readOnly && <>
+          <button className="primary-button" onClick={() => inputRef.current?.click()}>Add documents</button>
+          <input ref={inputRef} type="file" multiple hidden accept=".pdf,.jpg,.jpeg,.png,.tiff,.txt,.docx" onChange={(e) => {
             if (e.target.files) handleFiles(Array.from(e.target.files))
             e.target.value = ''
-          }}
-        />
+          }} />
+        </>}
       </div>
-
-      {queue.length > 0 && (
-        <div className="space-y-2">
-          {queue.map((q, i) => (
-            <div key={i} className="flex items-center justify-between border border-rule bg-sheet px-4 py-2 text-sm">
-              <span className="truncate text-ink/80">{q.name}</span>
-              <span
-                className={
-                  q.status === 'done' ? 'font-mono text-xs text-accent' : q.status === 'error' ? 'font-mono text-xs text-critical' : 'font-mono text-xs text-ink/40'
-                }
-              >
-                {q.status === 'uploading' ? 'Uploading…' : q.status === 'done' ? 'Ready' : 'Failed'}
-              </span>
-            </div>
-          ))}
+      {queue.length > 0 && <div className="space-y-2" aria-live="polite">{queue.map((item, i) => (
+        <div key={i} className="panel flex flex-wrap justify-between gap-2">
+          <span className="break-words">{item.name}</span>
+          <span className={`text-sm ${item.status === 'error' ? 'text-critical' : 'text-muted'}`}>
+            {item.status === 'uploading' ? 'Uploading…' : item.status === 'done' ? 'Ready' : 'Upload failed — try again'}
+          </span>
         </div>
-      )}
-
-      {docs.length > 0 && (
-        <div>
-          <div className="mb-2 font-serif text-base text-ink">{isDemo ? 'Demo documents' : 'Uploaded documents'}</div>
-          <div className="divide-y divide-rule border-t border-rule">
-            {docs.map((doc, i) => (
-              <div key={i} className="flex items-start gap-3 py-3">
-                <span aria-hidden>{doc.icon || '📄'}</span>
-                <div>
-                  <div className="text-sm font-medium text-ink">{doc.label}</div>
-                  {doc.description && <p className="mt-0.5 text-xs text-ink/50">{doc.description}</p>}
-                </div>
-              </div>
-            ))}
+      ))}</div>}
+      {docs.length ? <div className="space-y-3">{docs.map(([name, text]) => (
+        <details key={name} className="panel">
+          <summary className="font-medium capitalize">{name.replaceAll('_', ' ')}</summary>
+          <div className="mt-5 max-h-[60vh] overflow-y-auto border-t border-rule pt-4">
+            <p className="max-w-[75ch] whitespace-pre-wrap break-words leading-7">{text || 'No text available.'}</p>
           </div>
-        </div>
-      )}
-
-      {isDemo && (
-        <p className="text-xs text-ink/40">This is demo data — uploading new documents is disabled while viewing a demo patient.</p>
-      )}
+        </details>
+      ))}</div> : <p className="panel text-muted">No documents attached to this record.</p>}
     </div>
   )
 }

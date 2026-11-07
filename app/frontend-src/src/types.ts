@@ -74,12 +74,13 @@ export interface PatientData {
   patient_id: string
   patient?: PatientInfo
   summary: PatientSummary
-  source_documents?: SourceDocument[]
+  source_documents?: Record<string, string>
   case_label?: string
   _caseKey?: string
 }
 
 export interface AgentEvent {
+  review_run?: ReviewRun
   node: string
   audit_entry?: string
   error?: string
@@ -112,4 +113,44 @@ export interface EvalScores {
   answer_completeness?: number
   hallucination_detected?: boolean
   skipped?: boolean
+}
+
+export interface ReviewEvidence {
+  source_id: string
+  start: number
+  end: number
+  quote: string
+  assertion: string
+}
+export interface Reviewer { id: string; name: string }
+export type ReviewAction = 'accepted' | 'edited' | 'rejected' | 'clarification_requested'
+export interface ReviewFinding {
+  id: string
+  kind: string
+  title: string
+  original_text: string
+  assertion: string
+  evidence: ReviewEvidence[]
+  status: 'pending' | ReviewAction
+  decision: { action: ReviewAction; reason: string; edited_text: string | null; reviewer: Reviewer; at: string } | null
+}
+export interface ReviewClarification {
+  id: string
+  kind: 'calculator' | 'finding'
+  tool?: string
+  question: string
+  status: 'pending' | 'answered' | 'skipped'
+  fields?: { name: string; label: string; type: 'boolean' | 'number' | 'choice'; choices: string[] }[]
+  reason?: string
+  response?: string
+}
+export interface ReviewRun {
+  id: string
+  patient_id: string
+  created_at: string
+  version: number
+  status: 'draft' | 'needs_clarification' | 'finalized'
+  findings: ReviewFinding[]
+  clarifications: ReviewClarification[]
+  sources: Record<string, { label: string; text: string; kind: string }>
 }

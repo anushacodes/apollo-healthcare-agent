@@ -75,3 +75,17 @@ async function ingestDocument(patientId: string, file: File): Promise<void> {
 }
 
 export const api = { getCases, getCaseData, getKgStatus, runAgentWs, streamAsk, ingestDocument }
+
+
+export async function reviewRequest<T>(path: string, body?: unknown): Promise<T> {
+  const response = await fetch(`/api/review${path}`, {
+    method: body === undefined ? 'GET' : 'POST',
+    headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  })
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}))
+    throw new Error(typeof data.detail === 'string' ? data.detail : 'Could not save this review. Check your inputs and try again.')
+  }
+  return response.json()
+}

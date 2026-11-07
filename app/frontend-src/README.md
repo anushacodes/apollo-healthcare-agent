@@ -1,32 +1,16 @@
-# React + TypeScript + Vite
+# Apollo frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React 19, TypeScript, Vite, and Tailwind CSS. Use Node.js 24 LTS.
 
-Currently, two official plugins are available:
+From this directory:
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm ci
+npm run dev    # API must run on localhost:8000; /api and WebSockets are proxied
+npm run lint
+npm run build  # typecheck and emit ../frontend_dist for FastAPI
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+The UI offers three synthetic case dossiers with Summary, Diagnostics, Ask, and Documents tabs. Demo documents are read-only. Ask streams an answer followed by evaluation and suggested follow-up questions; closing the tab cancels its socket. Uploaded patient namespaces are currently an API-only workflow.
+
+The [root README](../../README.md) documents backend setup, optional model dependencies, environment variables, API contracts, tests, and limitations. Do not commit `node_modules`, `*.tsbuildinfo`, or generated `frontend_dist` assets.

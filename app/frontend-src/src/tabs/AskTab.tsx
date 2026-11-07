@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '../api'
+import { MarkdownAnswer } from '../components/MarkdownAnswer'
 import { DetailToggle } from '../components/DetailToggle'
 import { ASK_STEP_LABELS, ASK_TECHNICAL_LABELS, faithfulnessPlain } from '../labels'
 import type { AskEvent, Citation, EvalScores, PatientData } from '../types'
@@ -18,6 +19,8 @@ interface Message {
   citations?: Citation[]
   evalScores?: EvalScores
   isRefusal?: boolean
+  followUps?: string[]
+  evaluating?: boolean
   busy?: boolean
 }
 
@@ -33,6 +36,8 @@ export function AskTab({ patient }: { patient: PatientData }) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
+  const cancelRef = useRef<(() => void) | null>(null)
+  useEffect(() => () => cancelRef.current?.(), [])
 
   function ask(question: string) {
     if (!question.trim() || busy) return
@@ -50,7 +55,7 @@ export function AskTab({ patient }: { patient: PatientData }) {
       )
     }
 
-    api.streamAsk(
+    cancelRef.current = api.streamAsk(
       patient.patient_id || 'unknown',
       question,
       patient._caseKey || null,
@@ -73,14 +78,21 @@ export function AskTab({ patient }: { patient: PatientData }) {
             answer: data.final_response as string,
             citations: data.citations as Citation[],
             isRefusal: Boolean(data.is_refusal),
+            evalScores: data.eval_scores as EvalScores,
+            followUps: data.follow_ups as string[],
+            evaluating: !data.is_refusal && evt.node !== 'cache',
           }))
         } else if (evt.type === 'patch_eval') {
           const data = evt.data || {}
-          update((m) => ({ ...m, evalScores: data.eval_scores as EvalScores }))
+          update((m) => ({ ...m, evaluating: false, evalScores: data.eval_scores as EvalScores,
+            answer: (data.final_response as string) || m.answer }))
+        } else if (evt.type === 'patch_followups') {
+          update((m) => ({ ...m, followUps: evt.data?.follow_ups as string[] }))
         } else if (evt.type === 'error') {
           update((m) => ({
             ...m,
             busy: false,
+            evaluating: false,
             answer: '',
             trace: [...m.trace, { node: 'error', message: evt.message || 'Something went wrong.', type: 'error' }],
           }))
@@ -88,31 +100,31 @@ export function AskTab({ patient }: { patient: PatientData }) {
       },
       () => {
         setBusy(false)
-        update((m) => (m.busy ? { ...m, busy: false } : m))
+        update((m) => ({ ...m, busy: false, evaluating: false }))
       },
     )
   }
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between border-b border-rule bg-sheet px-6 py-3">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-rule bg-sheet px-4 py-5 sm:px-6">
         <div>
-          <h2 className="font-serif text-base text-ink">Ask about this patient</h2>
-          <p className="text-xs text-ink/50">Answers are grounded in patient records and clinical guidelines.</p>
+          <h2 className="font-serif text-2xl font-semibold text-ink">Ask</h2>
         </div>
-        <DetailToggle technical={technical} onChange={setTechnical} label="Show reasoning steps" />
+        <DetailToggle technical={technical} onChange={setTechnical} label="Details" />
       </div>
 
-      <div className="flex-1 space-y-4 overflow-y-auto p-6">
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="page-content space-y-6" aria-live="polite" aria-relevant="additions text">
         {messages.length === 0 && (
-          <div className="mx-auto max-w-md space-y-3 text-center">
-            <p className="text-sm text-ink/50">Ask anything about this patient's records or care plan.</p>
+          <div className="mx-auto max-w-2xl space-y-5 py-6 text-center">
+            <p className="text-base text-muted">What would you like to know about this patient?</p>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {SUGGESTIONS.map((q) => (
                 <button
                   key={q}
                   onClick={() => ask(q)}
-                  className="border border-rule bg-sheet px-3 py-2 text-left text-xs text-ink/70 hover:border-accent hover:text-accent"
+                  className="secondary-button text-left leading-relaxed"
                 >
                   {q}
                 </button>
@@ -124,12 +136,13 @@ export function AskTab({ patient }: { patient: PatientData }) {
         {messages.map((m, i) =>
           m.role === 'user' ? (
             <div key={i} className="flex justify-end">
-              <div className="max-w-lg bg-accent px-4 py-2 text-sm text-white">{m.text}</div>
+              <div className="w-full max-w-[60ch] rounded-xl bg-accent px-5 py-4 text-base text-white">{m.text}</div>
             </div>
           ) : (
-            <AgentMessage key={i} message={m} technical={technical} />
+            <AgentMessage key={i} message={m} technical={technical} onAsk={ask} disabled={busy} />
           ),
         )}
+        </div>
       </div>
 
       <form
@@ -137,19 +150,20 @@ export function AskTab({ patient }: { patient: PatientData }) {
           e.preventDefault()
           ask(input)
         }}
-        className="flex gap-2 border-t border-rule bg-sheet p-4"
+        className="flex shrink-0 gap-2 border-t border-rule bg-sheet p-4 sm:px-6"
       >
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ask about this patient…"
+          aria-label="Your question"
           disabled={busy}
-          className="flex-1 border border-rule px-3 py-2 text-sm focus:border-accent focus:outline-none disabled:bg-paper"
+          className="min-w-0 flex-1 rounded-lg border border-rule px-4 py-3 text-base focus:border-accent focus:outline-none disabled:bg-paper"
         />
         <button
           type="submit"
-          disabled={busy}
-          className="bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50"
+          disabled={busy || !input.trim()}
+          className="primary-button"
         >
           Send
         </button>
@@ -158,19 +172,19 @@ export function AskTab({ patient }: { patient: PatientData }) {
   )
 }
 
-function AgentMessage({ message, technical }: { message: Message; technical: boolean }) {
+function AgentMessage({ message, technical, onAsk, disabled }: { message: Message; technical: boolean; onAsk: (q: string) => void; disabled: boolean }) {
   if (message.busy) {
     const lastTrace = message.trace[message.trace.length - 1]
     return (
-      <div className="max-w-lg space-y-2">
-        <div className="flex items-center gap-2 border border-rule bg-sheet px-4 py-3 text-sm text-ink/70">
+      <div className="w-full max-w-[72ch] space-y-2">
+        <div className="flex items-center gap-2 border border-rule bg-sheet px-4 py-3 text-base text-muted">
           <span className="inline-block h-2 w-2 animate-ping rounded-full bg-accent" />
-          <span className="text-xs text-ink/70">
+          <span className="text-sm text-muted">
             {lastTrace ? (ASK_STEP_LABELS[lastTrace.node] || lastTrace.message) : 'Analyzing records…'}
           </span>
         </div>
         {technical && message.trace.length > 0 && (
-          <div className="space-y-1 border-l-2 border-accent bg-sheet p-3 text-xs font-mono text-ink/60">
+          <div className="space-y-1 break-words border-l-2 border-accent bg-sheet p-3 text-sm font-mono text-muted">
             {message.trace.map((t, i) => (
               <div key={i}>
                 [{ASK_TECHNICAL_LABELS[t.node] || t.node}] {t.message}
@@ -185,7 +199,7 @@ function AgentMessage({ message, technical }: { message: Message; technical: boo
   if (!message.answer && message.trace.some((t) => t.type === 'error')) {
     const err = message.trace.find((t) => t.type === 'error')
     return (
-      <div className="max-w-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
+      <div className="w-full max-w-[72ch] border border-red-300 bg-red-50 px-4 py-3 text-base text-red-700">
         ⚠️ {err?.message || 'Unable to complete request. Please verify server connection.'}
       </div>
     )
@@ -193,44 +207,51 @@ function AgentMessage({ message, technical }: { message: Message; technical: boo
 
   if (message.isRefusal) {
     return (
-      <div className="max-w-lg border border-rule bg-sheet px-4 py-3 text-sm text-ink/70">
-        Nothing relevant was found in the patient's records or the clinical guideline library. Try rephrasing, or
-        upload documents in the Documents tab.
+      <div className="w-full max-w-[72ch] border border-rule bg-sheet px-4 py-3 text-base text-muted">
+        Nothing relevant was found in the patient's records or the clinical guideline library. Try a more specific question or select another case.
       </div>
     )
   }
 
-  const faith = message.evalScores?.faithfulness
+  const faith = message.evalScores?.skipped ? undefined : message.evalScores?.faithfulness
   const faithPct = faith != null ? Math.round(faith * 100) : null
 
+  const assessment = message.evaluating ? 'Checking sources…' : message.evalScores?.skipped || faithPct == null ?
+    'Evaluation unavailable' : message.evalScores?.hallucination_detected || faithPct < 70 ?
+    'Source review flagged concerns' : 'Source review complete'
+  const caution = !message.evaluating && (message.evalScores?.skipped || faithPct == null || message.evalScores?.hallucination_detected || faithPct < 70)
+
   return (
-    <div className="max-w-lg space-y-2">
-      <div className="whitespace-pre-wrap border border-rule bg-sheet px-4 py-3 text-sm text-ink/90">
-        {message.answer}
+    <div className="w-full max-w-[72ch] space-y-3">
+      <p role="status" className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium ${caution ? 'bg-caution-subtle text-caution' : 'bg-accent-subtle text-accent'}`}>
+        <span aria-hidden>{message.evaluating ? '◌' : caution ? '!' : '✓'}</span> {assessment}
+      </p>
+      <div className="panel text-base text-ink">
+        <MarkdownAnswer>{message.answer || ''}</MarkdownAnswer>
       </div>
 
       {message.citations && message.citations.length > 0 && (
-        <div className="flex flex-wrap divide-x divide-rule text-xs text-ink/50">
+        <div className="flex flex-wrap gap-2 text-sm text-muted">
           {message.citations.map((c, i) => (
-            <span key={i} className="px-2 first:pl-0">
-              {c.source_doc || c.title}
+            <span key={i} className="max-w-full break-words rounded-md border border-rule bg-sheet px-3 py-1.5">
+              [{c.ref}] {c.url && /^https?:\/\//i.test(c.url) ? <a className="text-accent underline underline-offset-2" href={c.url} target="_blank" rel="noopener noreferrer">{c.title || c.source_doc}</a> : (c.source_doc || c.title)}
             </span>
           ))}
         </div>
       )}
 
-      {faithPct != null && !technical && <div className="text-xs text-ink/40">{faithfulnessPlain(faithPct)}</div>}
+      {faithPct != null && !technical && <div className="text-sm text-muted">{faithfulnessPlain(faithPct)}</div>}
 
       {technical && (
-        <div className="space-y-2 border-l-2 border-accent bg-sheet p-3 text-xs">
+        <div className="space-y-2 break-words border-l-2 border-accent bg-sheet p-3 text-sm">
           <div className="font-mono text-accent">Reasoning trace</div>
           {message.trace.map((t, i) => (
-            <div key={i} className="font-mono text-ink/60">
+            <div key={i} className="font-mono text-muted">
               [{ASK_TECHNICAL_LABELS[t.node] || t.node}] {t.message}
             </div>
           ))}
           {faithPct != null && (
-            <div className="flex divide-x divide-rule pt-1 font-mono text-ink/50">
+            <div className="flex flex-wrap gap-3 pt-1 text-sm text-muted">
               <span className="pr-2">faithfulness {faithPct}%</span>
               <span className="px-2">
                 relevance {message.evalScores?.context_relevance != null ? Math.round(message.evalScores.context_relevance * 100) : '—'}%
@@ -243,9 +264,15 @@ function AgentMessage({ message, technical }: { message: Message; technical: boo
         </div>
       )}
 
-      {!technical && message.trace.length > 0 && (
-        <div className="text-xs text-ink/40">{message.trace.map((t) => ASK_STEP_LABELS[t.node] || t.node).slice(-1)[0]}</div>
+      {message.followUps && message.followUps.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {message.followUps.map((q) => (
+            <button key={q} disabled={disabled} onClick={() => onAsk(q)} className="secondary-button text-left">{q}</button>
+          ))}
+        </div>
       )}
+
+
     </div>
   )
 }

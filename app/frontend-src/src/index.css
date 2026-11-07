@@ -42,3 +42,54 @@ body {
 .tab-enter {
   animation: fade-in 200ms ease-out;
 }
+
+@theme {
+  --color-sheet: #ffffff;
+  --color-muted: #52635c;
+}
+
+body { font-size: 16px; line-height: 1.6; }
+button:not(:disabled), summary { cursor: pointer; }
+button, input, summary, a { -webkit-tap-highlight-color: transparent; }
+:where(button, input, summary, a):focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 3px;
+}
+
+@layer components {
+  .page-content { @apply mx-auto w-full max-w-5xl p-4 sm:p-6 lg:p-8; }
+  .panel { @apply min-w-0 rounded-xl border border-rule bg-sheet p-5 shadow-sm sm:p-6; }
+  .section-title { @apply mb-4 font-serif text-xl font-semibold text-ink; }
+  .primary-button { @apply min-h-11 rounded-lg bg-accent px-5 py-2.5 font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50; }
+  .secondary-button { @apply min-h-11 rounded-lg border border-rule bg-sheet px-4 py-2 text-sm font-medium text-muted hover:border-accent hover:text-accent disabled:opacity-50; }
+  .status-badge { @apply inline-flex rounded-md border border-rule bg-paper px-2.5 py-1 text-sm font-medium; }
+  .clinical-table { @apply w-full border-collapse text-left; }
+  .clinical-table th { @apply border-b border-rule bg-paper px-4 py-3 text-sm font-medium text-muted; }
+  .clinical-table td { @apply border-b border-rule px-4 py-4 align-top; }
+  .clinical-table tbody tr:last-child td { @apply border-b-0; }
+}
+
+.answer-markdown { line-height: 1.8; overflow-wrap: anywhere; }
+.answer-markdown > :first-child { margin-top: 0; }
+.answer-markdown > :last-child { margin-bottom: 0; }
+.answer-markdown p { margin: 0 0 1em; }
+.answer-markdown :is(h1, h2, h3, h4, h5, h6) { font-weight: 600; line-height: 1.35; margin: 1.5em 0 .65em; }
+.answer-markdown :is(h1, h2) { font-size: 1.25rem; }
+.answer-markdown h3 { font-size: 1.125rem; }
+.answer-markdown :is(ul, ol) { padding-left: 1.5em; margin: .75em 0 1.25em; }
+.answer-markdown ul { list-style: disc; }
+.answer-markdown ol { list-style: decimal; }
+.answer-markdown li { padding-left: .25em; margin: .4em 0; }
+.answer-markdown li > p { margin-bottom: .5em; }
+.answer-markdown a { color: var(--color-accent); text-decoration: underline; text-underline-offset: 3px; }
+.answer-markdown blockquote { border-left: 3px solid var(--color-accent); padding-left: 1em; margin: 1em 0; color: var(--color-muted); }
+.answer-markdown :is(pre, code) { font-family: var(--font-mono); font-size: .875rem; background: var(--color-paper); border-radius: .25rem; }
+.answer-markdown code { padding: .15em .3em; }
+.answer-markdown pre { padding: 1em; overflow-x: auto; }
+.answer-markdown table { border-collapse: collapse; width: 100%; font-size: .875rem; }
+.answer-markdown :is(th, td) { padding: .75em; border: 1px solid var(--color-rule); text-align: left; }
+.answer-markdown th { background: var(--color-paper); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

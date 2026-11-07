@@ -1,5 +1,6 @@
-import { useState, type ReactNode } from 'react'
-import { api } from '../api'
+import { useEffect, useState, type ReactNode } from 'react'
+import { api, reviewRequest } from '../api'
+import { ReviewPanel } from '../components/ReviewPanel'
 import { DetailToggle } from '../components/DetailToggle'
 import {
   DIAGNOSTIC_STEP_LABELS,
@@ -9,7 +10,7 @@ import {
   explainIcdCode,
   sanitizeAuditText,
 } from '../labels'
-import type { AgentEvent, PatientData } from '../types'
+import type { AgentEvent, PatientData, ReviewRun } from '../types'
 
 type StepStatus = 'pending' | 'active' | 'done'
 
@@ -19,6 +20,25 @@ export function DiagnosticsTab({ patient }: { patient: PatientData }) {
   const [started, setStarted] = useState(false)
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set())
   const [events, setEvents] = useState<AgentEvent[]>([])
+  const [reviewRun, setReviewRun] = useState<ReviewRun | null>(null)
+  const [savedRuns, setSavedRuns] = useState<{ id: string; created_at: string; status: string }[]>([])
+  const [loadError, setLoadError] = useState('')
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let alive = true
+    reviewRequest<{ runs: { id: string; created_at: string; status: string }[] }>(`/patients/${encodeURIComponent(patient.patient_id)}/runs`)
+      .then(async data => {
+        if (!alive) return
+        setSavedRuns(data.runs)
+        if (data.runs.length) {
+          const latest = await reviewRequest<ReviewRun>(`/runs/${data.runs[0].id}`)
+          if (alive) { setReviewRun(latest); setStarted(true) }
+        }
+      }).catch(() => { if (alive) setLoadError('Could not load saved reviews. Reload to try again.') })
+      .finally(() => { if (alive) setLoading(false) })
+    return () => { alive = false }
+  }, [patient.patient_id])
 
   const interactionsEvent = events.find((e) => e.node === 'drug_graph')
   const diagnosisEvent = events.find((e) => e.node === 'diagnosis')
@@ -28,6 +48,8 @@ export function DiagnosticsTab({ patient }: { patient: PatientData }) {
 
   function run() {
     setRunning(true)
+    setLoadError('')
+    setReviewRun(null)
     setStarted(true)
     setEvents([])
     setCompletedSteps(new Set())
@@ -36,6 +58,11 @@ export function DiagnosticsTab({ patient }: { patient: PatientData }) {
     api
       .runAgentWs(patient.patient_id || 'demo', payload, (event) => {
         setEvents((prev) => [...prev, event])
+        if (event.review_run) {
+          const draft = event.review_run
+          setReviewRun(draft)
+          setSavedRuns(prev => [{ id: draft.id, created_at: draft.created_at, status: draft.status }, ...prev])
+        }
         if (event.node !== '__start__') {
           setCompletedSteps((prev) => new Set(prev).add(event.node))
         }
@@ -43,30 +70,37 @@ export function DiagnosticsTab({ patient }: { patient: PatientData }) {
           setRunning(false)
         }
       })
-      .catch(() => setRunning(false))
+      .then(() => setRunning(false))
+      .catch(() => { setRunning(false); setLoadError('Analysis could not complete. Please try again.') })
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <h2 className="font-serif text-lg text-ink">Diagnostics</h2>
-        <DetailToggle technical={technical} onChange={setTechnical} label="Show technical log" />
+    <div className="page-content space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="font-serif text-2xl text-ink">Analysis</h2>
+        <DetailToggle technical={technical} onChange={setTechnical} label="Details" />
       </div>
 
-      {!started && (
-        <div className="border border-rule bg-sheet p-6 text-center">
-          <p className="mb-4 text-sm text-ink/70">
-            Run the assistant to review this patient's medications, consider possible diagnoses, and generate a
-            clinical summary.
+      {loadError && <p role="alert" className="panel text-critical">{loadError}</p>}
+      {!!savedRuns.length && <label className="block text-sm text-muted">Saved analyses<select aria-label="Saved analyses" className="mt-2 block w-full rounded-lg border border-rule bg-sheet p-3 text-base text-ink" value={reviewRun?.id || ''} disabled={running || loading} onChange={async e => {
+        setLoading(true); setLoadError('')
+        try { setReviewRun(await reviewRequest<ReviewRun>(`/runs/${e.target.value}`)); setEvents([]); setStarted(true) }
+        catch { setLoadError('Could not open this analysis.') } finally { setLoading(false) }
+      }}><option value="" disabled>Select an analysis</option>{savedRuns.map(item => <option key={item.id} value={item.id}>{new Date(item.created_at).toLocaleString()} · {item.status.replaceAll('_', ' ')}</option>)}</select></label>}
+      {loading && <p role="status" className="text-muted">Loading saved analysis…</p>}
+      {!started && !loading && (
+        <div className="panel text-center">
+          <p className="mb-4 text-base text-muted">
+            Review medications, possible diagnoses, and clinical risk scores.
           </p>
-          <button onClick={run} className="bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover">
+          <button onClick={run} className="primary-button">
             Run analysis
           </button>
         </div>
       )}
 
-      {started && (
-        <div className="border border-rule bg-sheet p-5">
+      {started && events.length > 0 && (running || technical) && (
+        <div className="panel">
           <div className="space-y-2">
             {DIAGNOSTIC_STEP_ORDER.map((step, idx) => {
               const nextPendingIdx = DIAGNOSTIC_STEP_ORDER.findIndex((s) => !completedSteps.has(s))
@@ -75,26 +109,33 @@ export function DiagnosticsTab({ patient }: { patient: PatientData }) {
             })}
           </div>
           {!running && (
-            <button onClick={run} className="mt-4 font-mono text-xs text-accent hover:text-accent-hover">
+            <button onClick={run} className="secondary-button mt-5">
               Run again
             </button>
           )}
         </div>
       )}
 
+      {started && !running && !technical && <div className="flex items-center justify-between gap-3">
+        <p role="status" className="text-sm text-muted">{errored ? 'Analysis interrupted' : reviewRun?.status === 'finalized' ? 'Review finalized' : 'Draft analysis'}</p>
+        <button onClick={run} className="secondary-button">Run again</button>
+      </div>}
+
       {errored && (
-        <div className="border border-critical/30 bg-critical-subtle p-4 text-sm text-critical">
+        <div className="border border-critical/30 bg-critical-subtle p-4 text-base text-critical">
           Something went wrong while running the analysis. You can try again.
         </div>
       )}
 
-      {interactionsEvent && <InteractionsPanel event={interactionsEvent} />}
-      {diagnosisEvent && <DiagnosesPanel event={diagnosisEvent} />}
-      {calcEvent && <CalculatorsPanel event={calcEvent} technical={technical} />}
-      {summaryEvent && <SummaryPanel event={summaryEvent} />}
+      {!reviewRun && interactionsEvent && <InteractionsPanel event={interactionsEvent} />}
+      {!reviewRun && diagnosisEvent && <DiagnosesPanel event={diagnosisEvent} />}
+      {!reviewRun && calcEvent && <CalculatorsPanel event={calcEvent} technical={technical} />}
+      {!reviewRun && summaryEvent && <SummaryPanel event={summaryEvent} />}
+
+      {reviewRun && <ReviewPanel key={reviewRun.id} run={reviewRun} onChange={setReviewRun} />}
 
       {technical && events.length > 0 && (
-        <div className="space-y-1.5 border-t-2 border-accent pt-4 font-mono text-xs text-ink/70">
+        <div className="space-y-1.5 border-t-2 border-accent pt-4 font-mono text-sm text-muted">
           <div className="mb-2 text-accent">Technical execution log</div>
           {events.map((e, i) => (
             <div key={i}>
@@ -110,15 +151,15 @@ export function DiagnosticsTab({ patient }: { patient: PatientData }) {
 
 function StepRow({ label, status }: { label: string; status: StepStatus }) {
   return (
-    <div className="flex items-center gap-3 text-sm">
+    <div className="flex items-center gap-3 text-base">
       <span
-        className={`flex h-4 w-4 shrink-0 items-center justify-center text-xs ${
-          status === 'done' ? 'bg-accent text-white' : status === 'active' ? 'border border-accent text-accent' : 'border border-rule text-ink/30'
+        className={`flex h-4 w-4 shrink-0 items-center justify-center text-sm ${
+          status === 'done' ? 'bg-accent text-white' : status === 'active' ? 'border border-accent text-accent' : 'border border-rule text-muted'
         }`}
       >
         {status === 'done' ? '✓' : status === 'active' ? '…' : ''}
       </span>
-      <span className={status === 'pending' ? 'text-ink/35' : 'text-ink/85'}>{label}</span>
+      <span className={status === 'pending' ? 'text-muted' : 'text-ink'}>{label}</span>
     </div>
   )
 }
@@ -130,7 +171,7 @@ function InteractionsPanel({ event }: { event: AgentEvent }) {
   if (!interactions.length) {
     return (
       <Panel title="Medication check">
-        <p className="text-sm text-ink/60">No medication interactions were found.</p>
+        <p className="text-base text-muted">{data.error || risk === 'unknown' ? 'Medication analysis is unavailable. No safety conclusion can be drawn from this result.' : 'No medication interactions were identified in this analysis.'}</p>
       </Panel>
     )
   }
@@ -139,8 +180,8 @@ function InteractionsPanel({ event }: { event: AgentEvent }) {
       <div className="space-y-2">
         {interactions.map((i, idx) => (
           <div key={idx} className="border-b border-rule pb-2 last:border-0">
-            <div className="text-sm font-medium text-ink">{((i.drugs as string[]) || []).join(' + ')}</div>
-            <div className="text-xs text-ink/50">{i.clinical_significance as string}</div>
+            <div className="text-base font-medium text-ink">{((i.drugs as string[]) || []).join(' + ')}</div>
+            <div className="text-sm text-muted">{i.clinical_significance as string}</div>
           </div>
         ))}
       </div>
@@ -161,11 +202,11 @@ function DiagnosesPanel({ event }: { event: AgentEvent }) {
           return (
             <div key={idx} className={`border-b border-rule pb-3 last:border-0 ${isPrimary ? 'border-l-2 border-l-accent pl-3' : ''}`}>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-ink">{dx.name as string}</span>
-                {isPrimary && <span className="font-mono text-[10px] text-accent">most likely</span>}
+                <span className="text-base font-medium text-ink">{dx.name as string}</span>
+                {isPrimary && <span className="text-sm font-medium text-accent">most likely</span>}
               </div>
-              {hint && <div className="text-xs text-ink/50">{hint}</div>}
-              <p className="mt-1 text-sm text-ink/70">{dx.reasoning as string}</p>
+              {hint && <div className="text-sm text-muted">{hint}</div>}
+              <p className="mt-1 text-base text-muted">{dx.reasoning as string}</p>
             </div>
           )
         })}
@@ -177,29 +218,41 @@ function DiagnosesPanel({ event }: { event: AgentEvent }) {
 function CalculatorsPanel({ event, technical }: { event: AgentEvent; technical: boolean }) {
   const results = event.calculator_results || []
   if (!results.length) return null
+  const names: Record<string, string> = {
+    ascvd_risk_calculator: 'ASCVD · 10-year cardiovascular risk',
+    wells_dvt_score: 'Wells · DVT probability',
+    cha2ds2_vasc_score: 'CHA₂DS₂-VASc · Stroke risk',
+  }
+  const labels: Record<string, string> = {
+    '10_year_risk_pct': '10-year risk', risk_category: 'Risk category', score: 'Score',
+    dvt_probability: 'DVT probability', approximate_dvt_likelihood: 'Estimated likelihood',
+    annual_stroke_risk_estimate: 'Estimated annual stroke risk',
+  }
   return (
     <Panel title="Clinical calculators">
-      <div className="space-y-3">
+      <div className="space-y-6">
         {results.map((r, idx) => {
-          if (r.error) return null
           const res = (r.result as Record<string, unknown>) || {}
+          const error = r.error || res.error
           return (
-            <div key={idx} className="border-b border-rule pb-2 last:border-0">
-              <div className="text-sm font-medium text-ink">{(res.tool as string) || (r.tool as string)}</div>
-              {technical ? (
-                <div className="mt-1 grid grid-cols-2 gap-x-4 gap-y-0.5 font-mono text-xs text-ink/60">
-                  {Object.entries(res)
-                    .filter(([k]) => k !== 'tool')
-                    .map(([k, v]) => (
-                      <div key={k} className="flex justify-between gap-2">
-                        <span className="text-ink/35">{explainCalculatorKey(k)}</span>
-                        <span>{String(v)}</span>
-                      </div>
-                    ))}
-                </div>
-              ) : (
-                <p className="text-xs text-ink/50">Result available in technical view.</p>
-              )}
+            <div key={idx} className="border-b border-rule pb-5 last:border-0 last:pb-0">
+              <h4 className="mb-3 font-medium">{names[r.tool as string] || (res.tool as string) || (r.tool as string)}</h4>
+              {error ? <p className="rounded-lg bg-caution-subtle p-3 text-sm text-caution">{String(error)}</p> : <>
+                <dl className="grid gap-3 sm:grid-cols-2">
+                  {Object.entries(labels).filter(([key]) => res[key] != null).map(([key, label]) => (
+                    <div key={key} className="rounded-lg bg-paper p-4">
+                      <dt className="text-sm text-muted">{label}</dt>
+                      <dd className="mt-1 text-xl font-semibold tabular-nums">{String(res[key])}{key === '10_year_risk_pct' ? '%' : ''}</dd>
+                    </div>
+                  ))}
+                </dl>
+                {res.recommendation != null && <p className="mt-4 leading-7">{String(res.recommendation)}</p>}
+                {technical && <dl className="mt-4 space-y-2 border-t border-rule pt-4 text-sm">
+                  {Object.entries(res).filter(([key]) => key !== 'tool').map(([key, value]) => (
+                    <div key={key} className="flex flex-wrap justify-between gap-2"><dt className="text-muted">{explainCalculatorKey(key)}</dt><dd className="font-mono">{String(value)}</dd></div>
+                  ))}
+                </dl>}
+              </>}
             </div>
           )
         })}
@@ -213,9 +266,9 @@ function SummaryPanel({ event }: { event: AgentEvent }) {
   if (!summary) return null
   return (
     <Panel title="Summary">
-      {summary.patient_facing_summary && <p className="text-sm text-ink/80">{summary.patient_facing_summary}</p>}
+      {summary.patient_facing_summary && <p className="text-base text-ink">{summary.patient_facing_summary}</p>}
       {summary.follow_up_actions?.length > 0 && (
-        <ul className="mt-3 space-y-1 text-sm text-ink/70">
+        <ul className="mt-3 space-y-1 text-base text-muted">
           {summary.follow_up_actions.map((a, i) => (
             <li key={i} className="border-l-2 border-rule pl-3">
               {a}
@@ -229,10 +282,10 @@ function SummaryPanel({ event }: { event: AgentEvent }) {
 
 function Panel({ title, badge, children }: { title: string; badge?: string; children: ReactNode }) {
   return (
-    <section className="border-t border-rule pt-4">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="font-serif text-base text-ink">{title}</h3>
-        {badge && <span className="font-mono text-xs text-ink/50">{badge}</span>}
+    <section className="panel">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <h3 className="font-serif text-xl font-semibold text-ink">{title}</h3>
+        {badge && <span className="font-mono text-sm text-muted">{badge}</span>}
       </div>
       {children}
     </section>
