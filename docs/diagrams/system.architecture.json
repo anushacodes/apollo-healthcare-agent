@@ -1,0 +1,149 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Apollo \u00b7 System architecture",
+    "locale": "en",
+    "quality_profile": "showcase"
+  },
+  "components": [
+    {
+      "id": "apollo_ui",
+      "type": "frontend",
+      "label": "Patient workspace",
+      "sublabel": "React \u00b7 TypeScript \u00b7 Tailwind",
+      "pos": [
+        40,
+        290
+      ],
+      "size": [
+        220,
+        80
+      ]
+    },
+    {
+      "id": "apollo_api",
+      "type": "backend",
+      "label": "FastAPI",
+      "sublabel": "REST \u00b7 WebSocket \u00b7 MCP HTTP",
+      "pos": [
+        370,
+        290
+      ],
+      "size": [
+        220,
+        80
+      ]
+    },
+    {
+      "id": "apollo_agents",
+      "type": "backend",
+      "label": "Agent workflows",
+      "sublabel": "Diagnostics + question answering",
+      "pos": [
+        700,
+        290
+      ],
+      "size": [
+        240,
+        80
+      ]
+    },
+    {
+      "id": "apollo_retrieval",
+      "type": "backend",
+      "label": "Retrieval",
+      "sublabel": "Patient records \u00b7 MCP guidelines",
+      "pos": [
+        1070,
+        290
+      ],
+      "size": [
+        240,
+        80
+      ]
+    },
+    {
+      "id": "apollo_knowledge",
+      "type": "database",
+      "label": "Clinical knowledge",
+      "sublabel": "Local JSON condition library",
+      "pos": [
+        700,
+        40
+      ],
+      "size": [
+        240,
+        80
+      ]
+    },
+    {
+      "id": "apollo_models",
+      "type": "external",
+      "label": "LLM providers",
+      "sublabel": "Groq \u00b7 OpenRouter \u00b7 Gemini\u00b9",
+      "pos": [
+        700,
+        540
+      ],
+      "size": [
+        240,
+        80
+      ]
+    },
+    {
+      "id": "apollo_indexes",
+      "type": "database",
+      "label": "Search indexes",
+      "sublabel": "SQLite FTS5 \u00b7 optional Qdrant",
+      "pos": [
+        1070,
+        540
+      ],
+      "size": [
+        240,
+        80
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "browser_api",
+      "from": "apollo_ui",
+      "to": "apollo_api",
+      "label": "REST / WebSocket"
+    },
+    {
+      "id": "api_run",
+      "from": "apollo_api",
+      "to": "apollo_agents",
+      "label": "Run workflow"
+    },
+    {
+      "id": "agent_retrieve",
+      "from": "apollo_agents",
+      "to": "apollo_retrieval",
+      "label": "Retrieve context"
+    },
+    {
+      "id": "condition_lookup",
+      "from": "apollo_agents",
+      "to": "apollo_knowledge",
+      "label": "Condition lookup"
+    },
+    {
+      "id": "model_calls",
+      "from": "apollo_agents",
+      "to": "apollo_models",
+      "label": "Generate / evaluate",
+      "labelDy": 24
+    },
+    {
+      "id": "hybrid_search",
+      "from": "apollo_retrieval",
+      "to": "apollo_indexes",
+      "label": "Hybrid search",
+      "labelDy": 24
+    }
+  ]
+}

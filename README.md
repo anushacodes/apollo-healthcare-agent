@@ -10,7 +10,7 @@ A multi-agent clinical intelligence workspace for exploring patient records, rev
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
 ![LangGraph](https://img.shields.io/badge/Agents-LangGraph-1C3C3C)
 
-[Architecture](#architecture) · [Quick start](#quick-start) · [Tech stack](#tech-stack) · [Development checks](#development-checks)
+[Architecture](#architecture) · [Quick start](#quick-start) · [Tech stack](#tech-stack) · [Development checks](#development-checks) · [Documentation](docs/README.md)
 
 ## What Apollo does
 

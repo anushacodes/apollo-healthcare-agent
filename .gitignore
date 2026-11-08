@@ -222,5 +222,5 @@ skills-lock.json
 data/patients/
 *.tsbuildinfo
 
-# Local development documentation
-/docs/
+# Interview preparation is kept on Desktop
+/docs/INTERVIEW-PREP.md
