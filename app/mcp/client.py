@@ -13,8 +13,7 @@ async def call_search_clinical_guidelines(query: str, top_k: int = 6) -> list[di
     """
     Calls the `search_clinical_guidelines` MCP tool over a real (in-memory)
     MCP client/server connection — the RAG graph reaches the curated corpus
-    through the MCP protocol rather than a direct function call, per
-    docs/TASKS.md Epic 3.2.
+    through the MCP protocol rather than a direct function call.
     """
     async with Client(mcp) as client:
         result = await client.call_tool("search_clinical_guidelines", {"query": query, "top_k": top_k})

@@ -17,8 +17,6 @@ from app.ingestion.extractors import (
 log = logging.getLogger(__name__)
 
 OCR_THRESHOLD = 800
-_MAX_CAPTION_PAGES = 3
-
 _note_gen = OCRNoteGenerator()
 
 @contextmanager

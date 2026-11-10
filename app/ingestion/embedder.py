@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import time
-import uuid
 from typing import Any
 
 from qdrant_client import QdrantClient
@@ -71,10 +70,6 @@ def _ensure_collection(client: QdrantClient) -> None:
             vectors_config=VectorParams(size=_EMBED_DIM, distance=Distance.COSINE),
         )
         log.info("[embedder] Created Qdrant collection '%s'", _COLLECTION)
-
-
-def _chunk_id(text: str) -> str:
-    return str(uuid.uuid5(uuid.NAMESPACE_DNS, text))
 
 
 def embed_chunks(chunks: list[dict[str, Any]]) -> int:
