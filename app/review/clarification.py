@@ -71,12 +71,14 @@ def resolve_calculator(run_id, clarification_id, request, reviewer):
     if request.action == "answer":
         context += "\nREVIEWER-SUPPLIED CALCULATOR INPUTS:\n" + supplied
     state = AgentState(patient_id=prepared["patient_id"], patient_data=patient, anonymized_notes=context,
+                       diagnostic_mode=snapshot.get("diagnostic_mode", "standard"),
                        calculator_results=snapshot["calculator_results"],
                        interactions=snapshot.get("interactions", {}), kg_matches=snapshot.get("kg_matches", []))
     diagnosis = diagnosis_node(state)
     state.diagnoses = diagnosis["diagnoses"]
     summary = summarizer_node(state)
     snapshot["diagnoses"] = state.diagnoses
+    snapshot["diagnostic_sources"] = diagnosis.get("diagnostic_sources", {})
     snapshot["final_summary"] = summary["final_summary"].model_dump(mode="json") if summary["final_summary"] else None
     sources = copy.deepcopy(prepared["sources"])
     sources[source_id] = {"label": f"Calculator clarification from {reviewer['name']}",

@@ -88,3 +88,28 @@ def test_failed_primary_uses_configured_fallback(monkeypatch, primary, call, con
     assert answer == expected
     assert model.startswith(f"{secondary}/")
     assert fallback.call_count == 1
+
+
+def test_bounded_json_disables_provider_fallback_and_counts_attempt(monkeypatch):
+    fallback = Mock(return_value=response('{}'))
+    primary = Mock(side_effect=RuntimeError("private failure"))
+    install_provider(monkeypatch, "openrouter", fallback)
+    install_provider(monkeypatch, "groq", primary)
+    telemetry = {}
+    with pytest.raises(llm_client.LLMProviderError):
+        llm_client.call_llm_json([], allow_fallback=False, telemetry=telemetry)
+    assert telemetry["requests"] == primary.call_count == 1
+    fallback.assert_not_called()
+
+
+def test_bounded_json_timeout_and_real_usage(monkeypatch):
+    reply = response('{}')
+    reply.usage = SimpleNamespace(prompt_tokens=12, completion_tokens=5)
+    completion = Mock(return_value=reply)
+    install_provider(monkeypatch, "groq", completion)
+    client = llm_client.get_groq_client()
+    client.with_options = Mock(return_value=client)
+    telemetry = {}
+    llm_client.call_llm_json([], timeout=20, telemetry=telemetry)
+    client.with_options.assert_called_once_with(timeout=20)
+    assert telemetry == {"requests": 1, "input_tokens": 12, "output_tokens": 5, "cost_usd": None}

@@ -31,7 +31,7 @@ You MUST respond ONLY with a valid JSON object adhering strictly to this schema:
 """
 
 
-def _call_llm(context: str) -> tuple[DiagnosisResult, str]:
+def _call_llm(context: str, telemetry: dict | None = None) -> tuple[DiagnosisResult, str]:
     raw_dict, model_used = call_llm_json(
         messages=[
             {"role": "system", "content": _SYSTEM_PROMPT},
@@ -39,6 +39,7 @@ def _call_llm(context: str) -> tuple[DiagnosisResult, str]:
         ],
         temperature=0.1,
         max_tokens=4096,
+        telemetry=telemetry,
     )
     result = DiagnosisResult.model_validate(raw_dict)
     return result, model_used
@@ -52,7 +53,9 @@ def run_diagnosis_agent(context: str) -> dict:
     if not settings.has_groq and not settings.has_openrouter:
         raise RuntimeError("Diagnosis agent: Neither GROQ_API_KEY nor OPENROUTER_API_KEY is configured.")
     log.info("[diagnosis_agent] Running via provider %s", settings.active_llm_provider)
-    res, model_used = _call_llm(context)
+    telemetry = {}
+    res, model_used = _call_llm(context, telemetry)
     data = res.model_dump()
     data["_model_used"] = model_used
+    data["_usage"] = telemetry
     return data
