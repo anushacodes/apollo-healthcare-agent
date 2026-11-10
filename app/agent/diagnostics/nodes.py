@@ -7,6 +7,7 @@ from pydantic import ValidationError
 from app.agent import kg_loader
 from app.agent.contracts import CalculatorCall, OrchestratorPlan
 from app.agent.diagnosis_agent import run_diagnosis_agent
+from app.agent.diagnostic_review import REVIEW_VERSION, diagnostic_sources, run_diagnostic_review
 from app.agent.diagnostics.prompts import _ORCHESTRATOR_PROMPT
 from app.agent.diagnostics.state import AgentState
 from app.agent.drug_interaction_agent import run_drug_interaction_agent
@@ -228,25 +229,44 @@ def diagnosis_node(state: AgentState) -> dict:
     """Runs after drug_graph_node so kg_matches are available."""
     log.info("[diagnosis_node] Running")
     enriched_context = state.anonymized_notes
+    kg_context = []
     if state.calculator_results:
         enriched_context += "\n\nCALCULATOR RESULTS:\n" + json.dumps(state.calculator_results)
     for match in state.kg_matches[:3]:
         condition_data = kg_loader.get_condition(match["condition"])
         if condition_data:
+            kg_context.append(condition_data)
             enriched_context += f"\n\nKG CONTEXT — {match['condition']}:\n{json.dumps(condition_data, indent=2)}"
 
-    cache_key = hash_payload({"context": enriched_context, "patient_id": state.patient_id})
+    sources = diagnostic_sources(state.patient_data, state.calculator_results, kg_context)
+    cache_key = hash_payload({"context": enriched_context, "patient_id": state.patient_id,
+                             "mode": state.diagnostic_mode, "version": REVIEW_VERSION,
+                             "sources": sources if state.diagnostic_mode == "extended" else None,
+                             "provider": settings.active_llm_provider,
+                             "models": [settings.groq_model, settings.openrouter_model]})
     cached    = get_node_cache("diagnosis", cache_key)
     if cached:
-        return {"diagnoses": cached, "audit_log": ["Diagnosis Agent: loaded cached analysis."]}
+        if "_diagnostic_review" in cached:
+            cached["_diagnostic_review"]["cached"] = True
+        return {"diagnoses": cached, "diagnostic_sources": sources if state.diagnostic_mode == "extended" else {},
+                "audit_log": ["Diagnosis Agent: loaded cached analysis."]}
 
     used_fallback = False
+    review_metadata = None
     try:
-        diagnoses = run_diagnosis_agent(enriched_context)
+        if state.diagnostic_mode == "extended":
+            if not settings.extended_diagnostics_enabled:
+                raise ValueError("Extended diagnostic review is disabled")
+            diagnoses = run_diagnostic_review(sources)
+            review_metadata = diagnoses["_diagnostic_review"]
+            if review_metadata["status"] != "complete":
+                raise RuntimeError("Extended diagnostic review could not complete")
+        else:
+            diagnoses = run_diagnosis_agent(enriched_context)
         primary   = diagnoses.get("primary_diagnosis", "unknown")
         count     = len(diagnoses.get("proposed_diagnoses", []))
         audit_entry = (
-            f"Diagnosis Agent: proposed {count} diagnosis/diagnoses. "
+            f"Diagnosis Agent ({state.diagnostic_mode}): proposed {count} diagnosis/diagnoses. "
             f"Primary: {primary}. KG-enriched context used."
         )
     except Exception as exc:
@@ -272,12 +292,18 @@ def diagnosis_node(state: AgentState) -> dict:
             "differential_notes":         "Fallback from structured diagnoses — diagnosis model unavailable.",
             "recommended_investigations": [],
         }
+        if state.diagnostic_mode == "extended":
+            diagnoses["_diagnostic_review"] = review_metadata or {
+                "mode": "extended", "status": "unavailable", "failure_code": "review_disabled",
+                "stages": [], "disagreements": [], "missing_information": [], "requests": 0,
+            }
         log.warning("[diagnosis_node] LLM provider failed, using fallback: %s", exc)
-        audit_entry = "Diagnosis Agent: provider unavailable, used structured fallback."
+        audit_entry = f"Diagnosis Agent ({state.diagnostic_mode}): unavailable, used structured fallback."
 
     if not used_fallback:
         set_node_cache("diagnosis", cache_key, diagnoses)
-    return {"diagnoses": diagnoses, "audit_log": [audit_entry]}
+    return {"diagnoses": diagnoses, "diagnostic_sources": sources if state.diagnostic_mode == "extended" else {},
+            "audit_log": [audit_entry]}
 
 
 def tool_node(state: AgentState) -> dict:

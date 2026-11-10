@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     groq_eval_model: str = Field(default="openai/gpt-oss-20b", alias="GROQ_EVAL_MODEL")
     gemini_model: str = Field(default="gemini-2.0-flash", alias="GEMINI_MODEL")
     openrouter_model: str = Field(default="meta-llama/llama-3.3-70b-instruct", alias="OPENROUTER_MODEL")
+    extended_diagnostics_enabled: bool = Field(default=False, alias="EXTENDED_DIAGNOSTICS_ENABLED")
 
 
     qdrant_url: str = Field(default="http://localhost:6333", alias="QDRANT_URL")

@@ -12,6 +12,7 @@ from app.agent.diagnostics.nodes import (
     tool_node,
 )
 from app.agent.diagnostics.state import AgentState
+from app.config import settings
 
 log = logging.getLogger(__name__)
 
@@ -45,9 +46,13 @@ def _build_graph() -> StateGraph:
 graph = _build_graph()
 
 
-async def run_graph_streaming(patient_data: dict) -> AsyncGenerator[dict, None]:
+async def run_graph_streaming(patient_data: dict, diagnostic_mode: str = "standard") -> AsyncGenerator[dict, None]:
     """Run the full diagnostics graph, yielding a state update after every node."""
     patient_id    = patient_data.get("patient_id", "unknown")
+    if diagnostic_mode not in ("standard", "extended"):
+        raise ValueError("Choose standard or extended diagnostic review")
+    if diagnostic_mode == "extended" and not settings.extended_diagnostics_enabled:
+        raise ValueError("Extended diagnostic review is disabled on this server")
     initial_state: AgentState = {
         "patient_id":         patient_id,
         "patient_data":       patient_data,
@@ -55,6 +60,7 @@ async def run_graph_streaming(patient_data: dict) -> AsyncGenerator[dict, None]:
         "extracted_params":   {},
         "calculator_results": [],
         "diagnoses":          {},
+        "diagnostic_mode":    diagnostic_mode,
         "interactions":       {},
         "kg_matches":         [],
         "final_summary":      None,
@@ -73,6 +79,7 @@ async def run_graph_streaming(patient_data: dict) -> AsyncGenerator[dict, None]:
                 "node":        node_name,
                 "audit_entry": latest_entry,
                 "audit_log":   list(full_audit_log),
+                "diagnostic_mode": diagnostic_mode,
             }
 
             if node_name == "orchestrator":
@@ -82,6 +89,7 @@ async def run_graph_streaming(patient_data: dict) -> AsyncGenerator[dict, None]:
                 payload["kg_matches"]   = node_state.get("kg_matches", [])
             elif node_name == "diagnosis":
                 payload["diagnoses"] = node_state.get("diagnoses", {})
+                payload["diagnostic_sources"] = node_state.get("diagnostic_sources", {})
             elif node_name == "tool_node":
                 payload["calculator_results"] = node_state.get("calculator_results", [])
             elif node_name == "summarizer":

@@ -122,6 +122,9 @@ def call_llm_json(
     *,
     temperature: float = 0.1,
     max_tokens: int = 4096,
+    allow_fallback: bool = True,
+    timeout: float | None = None,
+    telemetry: dict | None = None,
 ) -> tuple[dict[str, Any], str]:
     """
     Call the active LLM provider (Groq or OpenRouter) requesting a JSON object.
@@ -134,11 +137,20 @@ def call_llm_json(
     else:
         providers = ["groq", "openrouter"]
 
+    providers = [p for p in providers if getattr(settings, f"has_{p}")]
+    if not allow_fallback:
+        providers = providers[:1]
+    if telemetry is not None:
+        telemetry.update(requests=0, input_tokens=None, output_tokens=None, cost_usd=None)
     last_error = None
     for prov in providers:
+        if telemetry is not None:
+            telemetry["requests"] += 1
         if prov == "openrouter" and settings.has_openrouter:
             try:
                 client = get_openrouter_client()
+                if timeout is not None:
+                    client = client.with_options(timeout=timeout)
                 resp = client.chat.completions.create(
                     model=settings.openrouter_model,
                     messages=messages,
@@ -146,7 +158,9 @@ def call_llm_json(
                     temperature=temperature,
                     max_tokens=max_tokens,
                 )
-                return _response_json(resp), f"openrouter/{settings.openrouter_model}"
+                result = _response_json(resp)
+                _record_usage(resp, telemetry)
+                return result, f"openrouter/{settings.openrouter_model}"
             except Exception as exc:
                 last_error = _provider_error(prov, exc)
                 log.warning("[llm_client] OpenRouter JSON call failed: %s", last_error)
@@ -154,6 +168,8 @@ def call_llm_json(
         elif prov == "groq" and settings.has_groq:
             try:
                 client = get_groq_client()
+                if timeout is not None:
+                    client = client.with_options(timeout=timeout)
                 resp = client.chat.completions.create(
                     model=settings.groq_model,
                     messages=messages,
@@ -161,12 +177,28 @@ def call_llm_json(
                     temperature=temperature,
                     max_tokens=max_tokens,
                 )
-                return _response_json(resp), f"groq/{settings.groq_model}"
+                result = _response_json(resp)
+                _record_usage(resp, telemetry)
+                return result, f"groq/{settings.groq_model}"
             except Exception as exc:
                 last_error = _provider_error(prov, exc)
                 log.warning("[llm_client] Groq JSON call failed: %s", last_error)
 
     _raise_provider_failure(last_error)
+
+
+def _record_usage(response: Any, telemetry: dict | None) -> None:
+    if telemetry is None:
+        return
+    if telemetry["requests"] != 1:
+        # A failed earlier attempt may also have been billed. Partial usage is not a total.
+        return
+    usage = getattr(response, "usage", None)
+    for target, field in (("input_tokens", "prompt_tokens"), ("output_tokens", "completion_tokens")):
+        value = getattr(usage, field, None)
+        if isinstance(value, int) and value >= 0:
+            telemetry[target] = value
+    # Provider/model prices vary. Do not infer a monetary charge from token counts.
 
 
 def call_llm_text(

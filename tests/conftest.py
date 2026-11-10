@@ -23,6 +23,7 @@ def isolated_runtime(tmp_path, monkeypatch):
     sqlite_cache.init_db()
     for key in ("groq_api_key", "gemini_api_key", "openrouter_api_key", "tavily_api_key"):
         monkeypatch.setattr(settings, key, None)
+    monkeypatch.setattr(settings, "extended_diagnostics_enabled", False)
     monkeypatch.setattr(embedder, "_get_client", lambda: None)
 
     def forbidden(*args, **kwargs):

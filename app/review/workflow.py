@@ -9,6 +9,7 @@ from app.review.evidence import evidence_for, finding_assertion, record_sources
 
 def build_findings(patient: dict, snapshot: dict, sources: dict) -> list[dict]:
     findings = []
+    sources.update(snapshot.get("diagnostic_sources", {}))
 
     def add(key, kind, title, text, evidence, assertion="ai_suggested"):
         findings.append({"id": key, "kind": kind, "title": title, "original_text": text,
@@ -29,11 +30,40 @@ def build_findings(patient: dict, snapshot: dict, sources: dict) -> list[dict]:
         seen.add(name.casefold())
         evidence = evidence_for(name, sources)
         assertion = finding_assertion(name, patient, evidence)
-        interpretation = proposed_by_name.get(name.casefold(), {}).get("reasoning")
+        proposal = proposed_by_name.get(name.casefold(), {})
+        interpretation = proposal.get("reasoning")
+        # Exact supporting/counterevidence quotes remain inference provenance.
+        # They never turn a proposed condition into a documented diagnosis.
+        for ref in [*proposal.get("evidence_refs", []), *proposal.get("counterevidence", [])]:
+            source = sources.get(ref["source_id"])
+            quote = ref["quote"]
+            if source and quote and quote in source["text"]:
+                start = source["text"].index(quote)
+                evidence.append({"source_id": ref["source_id"], "start": start, "end": start + len(quote),
+                                 "quote": quote, "assertion": "ai_suggested"})
         text = f"{name} · {dx.get('status', 'AI suggested')} · {dx.get('icd_code') or 'No code recorded'}"
         if interpretation:
             text += f"\nDraft interpretation: {interpretation}"
+        for label, key in (("Counterevidence", "counterevidence"), ("Missing information", "missing_information")):
+            values = proposal.get(key, [])
+            if values:
+                text += f"\n{label}: " + "; ".join(v["quote"] if isinstance(v, dict) else v for v in values)
         add(f"diagnosis-{hash_text(name.casefold())[:16]}", "diagnosis", name, text, evidence, assertion)
+    review = snapshot.get("diagnoses", {}).get("_diagnostic_review")
+    if review:
+        if review["status"] != "complete":
+            add("diagnostic-review-unavailable", "diagnostic_review", "Extended diagnostic review unavailable",
+                "The extended review did not complete. Listed record diagnoses are a fallback, not a new diagnostic assessment. "
+                "Review the record manually or rerun the analysis.", [], "unavailable")
+        else:
+            issues = list(dict.fromkeys([*review.get("disagreements", []), *review.get("concerns", []),
+                                        *review.get("missing_information", [])]))
+            if issues:
+                add("diagnostic-review-uncertainty", "diagnostic_review", "Diagnostic uncertainty to review",
+                    "\n".join(issues), [])
+            for i, investigation in enumerate(snapshot["diagnoses"].get("recommended_investigations", [])):
+                add(f"diagnostic-investigation-{i}", "investigation", "Suggested investigation",
+                    investigation, [])
     interactions = snapshot.get("interactions", {})
     if "interactions" in snapshot and (interactions.get("error") or interactions.get("overall_risk") == "unknown"):
         add("medication-unavailable", "medication", "Medication review unavailable",
@@ -84,12 +114,12 @@ def create_draft(patient: dict, snapshot: dict) -> dict:
     return create_run(patient, snapshot, sources, findings, clarifications)
 
 
-async def run_reviewable_analysis(patient_data: dict):
+async def run_reviewable_analysis(patient_data: dict, diagnostic_mode: str = "standard"):
     from app.review.extraction import with_reviewed_fields
 
     patient_data = await asyncio.to_thread(with_reviewed_fields, patient_data)
     snapshot = {}
-    async for event in run_graph_streaming(patient_data):
+    async for event in run_graph_streaming(patient_data, diagnostic_mode):
         snapshot.update({key: value for key, value in event.items() if key not in ("node", "audit_entry")})
         yield event
     run = await asyncio.to_thread(create_draft, patient_data, snapshot)

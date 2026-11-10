@@ -1,5 +1,5 @@
 import operator
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -15,6 +15,8 @@ class AgentState(BaseModel):
     extracted_params:    dict = Field(default_factory=dict)
     calculator_results:  list[dict] = Field(default_factory=list)
     diagnoses:           dict = Field(default_factory=dict)
+    diagnostic_mode:     Literal["standard", "extended"] = "standard"
+    diagnostic_sources:  dict = Field(default_factory=dict)
     interactions:        dict = Field(default_factory=dict)
     kg_matches:          list[dict] = Field(default_factory=list)
     final_summary:       ClinicalSummary | None = None
