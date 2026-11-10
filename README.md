@@ -54,6 +54,23 @@ flowchart LR
 
 The diagnostics graph is sequential. Structured patient fields supply calculator inputs for ASCVD, Wells DVT, and CHA₂DS₂-VASc; an LLM can augment the plan. Calculator and agent findings feed downstream reasoning and the final summary. Every stage emits an execution event. A wrapper then saves the analysis as a reviewable draft; the LangGraph itself does not pause for human approval.
 
+Analysis uses **Standard** diagnostic review by default. Set
+`EXTENDED_DIAGNOSTICS_ENABLED=true` in `.env`, restart the backend, and select
+**Extended** before running an analysis to use two independent assessments, one
+critique, and one synthesis. These four diagnostic passes preserve uncertainty and
+validate exact source quotations. They add model calls and may take longer. A failed
+pass marks the extended review unavailable and uses the existing structured-record
+fallback; partial assessments do not become the final differential. Saved drafts
+retain assessment summaries and require review of uncertainty and suggested
+investigations. This is an experimental feature, not demonstrated clinical improvement.
+See the [backend limits](docs/DIAGNOSTIC_BACKEND.md) and
+[comparison benchmark](docs/DIAGNOSTIC_EXPERIMENT.md).
+
+Both `POST /api/agent/run/{patient_id}` and the Analysis WebSocket accept
+`diagnostic_mode: "standard" | "extended"` alongside the existing patient payload
+or `{ "case": "case_a" }`. Omitted mode means standard. Extended requests are
+rejected when disabled; `GET /api/agent/capabilities` reports availability.
+
 ### Human-in-the-loop review
 
 ```mermaid

@@ -4,11 +4,35 @@ import logging
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 
 from app.agent.seed_patient import get_case, list_cases
+from app.config import settings
 from app.review.extraction import with_reviewed_fields
 from app.review.workflow import run_reviewable_analysis as run_graph_streaming
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/agent", tags=["agent"])
+
+
+@router.get("/capabilities")
+async def capabilities():
+    return {"extended_diagnostics_enabled": settings.extended_diagnostics_enabled}
+
+
+def analysis_request(payload: dict, patient_id: str) -> tuple[dict, str]:
+    mode = payload.get("diagnostic_mode", "standard")
+    if mode not in ("standard", "extended"):
+        raise HTTPException(422, "Choose standard or extended diagnostic review")
+    if mode == "extended" and not settings.extended_diagnostics_enabled:
+        raise HTTPException(422, "Extended diagnostic review is disabled on this server")
+    if "case" in payload:
+        if not isinstance(payload["case"], str):
+            raise HTTPException(422, "Case must be a case key string")
+        patient = get_case(payload["case"])
+        if not patient:
+            raise HTTPException(404, "Case not found")
+    else:
+        patient = {key: value for key, value in payload.items() if key != "diagnostic_mode"}
+        patient.setdefault("patient_id", patient_id)
+    return patient, mode
 
 
 @router.get("/cases")
@@ -49,16 +73,11 @@ async def run_agent_ws(websocket: WebSocket, patient_id: str):
             await websocket.send_json({"node": "__error__", "error": "Expected a JSON object"})
             return
 
-        # Allow client to send {"case": "case_a"} as a shorthand
-        if "case" in payload:
-            patient_data = get_case(payload["case"])
-            if not patient_data:
-                await websocket.send_json({"node": "__error__", "error": f"Case '{payload['case']}' not found"})
-                await websocket.close()
-                return
-        else:
-            patient_data = payload
-            patient_data.setdefault("patient_id", patient_id)
+        try:
+            patient_data, diagnostic_mode = analysis_request(payload, patient_id)
+        except HTTPException as exc:
+            await websocket.send_json({"node": "__error__", "error": exc.detail})
+            return
 
         # Send start acknowledgement
         await websocket.send_json({
@@ -68,7 +87,7 @@ async def run_agent_ws(websocket: WebSocket, patient_id: str):
         })
 
         # Stream node-by-node
-        async for event in run_graph_streaming(patient_data):
+        async for event in run_graph_streaming(patient_data, diagnostic_mode):
             await websocket.send_json(event)
 
         # Signal completion
@@ -99,13 +118,7 @@ async def run_agent_http(patient_id: str, body: dict):
     HTTP fallback for environments that don't support WebSockets.
     Runs the full graph and returns the complete final state (no streaming).
     """
-    if "case" in body:
-        patient_data = get_case(body["case"])
-        if not patient_data:
-            raise HTTPException(status_code=404, detail=f"Case '{body['case']}' not found.")
-    else:
-        patient_data = body
-        patient_data.setdefault("patient_id", patient_id)
+    patient_data, diagnostic_mode = analysis_request(body, patient_id)
 
     audit_log = []
     final_summary = None
@@ -114,7 +127,7 @@ async def run_agent_http(patient_id: str, body: dict):
     calculator_results = []
     review_run = None
 
-    async for event in run_graph_streaming(patient_data):
+    async for event in run_graph_streaming(patient_data, diagnostic_mode):
         audit_log = event.get("audit_log", audit_log)
         if event.get("node") == "__review__":
             review_run = event["review_run"]
@@ -129,6 +142,7 @@ async def run_agent_http(patient_id: str, body: dict):
 
     return {
         "patient_id": patient_id,
+        "diagnostic_mode": diagnostic_mode,
         "review_run": review_run,
         "final_summary": final_summary,
         "diagnoses": diagnoses,

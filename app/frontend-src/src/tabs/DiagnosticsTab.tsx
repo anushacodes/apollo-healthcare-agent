@@ -3,6 +3,7 @@ import { api, reviewRequest } from '../api'
 import { Icon } from '../components/Icon'
 import { ReviewPanel } from '../components/ReviewPanel'
 import { DetailToggle } from '../components/DetailToggle'
+import { DiagnosticReviewPanel } from '../components/DiagnosticReviewPanel'
 import {
   DIAGNOSTIC_STEP_LABELS,
   DIAGNOSTIC_STEP_ORDER,
@@ -11,7 +12,7 @@ import {
   explainIcdCode,
   sanitizeAuditText,
 } from '../labels'
-import type { AgentEvent, PatientData, ReviewRun } from '../types'
+import type { AgentEvent, DiagnosticReview, PatientData, ReviewRun } from '../types'
 
 type StepStatus = 'pending' | 'active' | 'done'
 
@@ -25,6 +26,19 @@ export function DiagnosticsTab({ patient }: { patient: PatientData }) {
   const [savedRuns, setSavedRuns] = useState<{ id: string; created_at: string; status: string }[]>([])
   const [loadError, setLoadError] = useState('')
   const [loading, setLoading] = useState(true)
+  const [diagnosticMode, setDiagnosticMode] = useState<'standard' | 'extended'>('standard')
+  const [extendedEnabled, setExtendedEnabled] = useState(false)
+  const [capabilityError, setCapabilityError] = useState(false)
+
+  useEffect(() => {
+    let alive = true
+    fetch('/api/agent/capabilities').then(async response => {
+      if (!response.ok) throw new Error('Unavailable')
+      const data = await response.json()
+      if (alive) setExtendedEnabled(data.extended_diagnostics_enabled === true)
+    }).catch(() => { if (alive) setCapabilityError(true) })
+    return () => { alive = false }
+  }, [])
 
   useEffect(() => {
     let alive = true
@@ -46,6 +60,8 @@ export function DiagnosticsTab({ patient }: { patient: PatientData }) {
   const calcEvent = events.find((e) => e.node === 'tool_node')
   const summaryEvent = events.find((e) => e.node === 'summarizer')
   const errored = events.some((e) => e.node === '__error__')
+  const diagnosticReview = reviewRun?.analysis?.diagnoses?._diagnostic_review
+    || diagnosisEvent?.diagnoses?._diagnostic_review as DiagnosticReview | undefined
 
   function run() {
     setRunning(true)
@@ -55,7 +71,7 @@ export function DiagnosticsTab({ patient }: { patient: PatientData }) {
     setEvents([])
     setCompletedSteps(new Set())
 
-    const payload = patient._caseKey ? { case: patient._caseKey } : patient
+    const payload = { ...(patient._caseKey ? { case: patient._caseKey } : patient), diagnostic_mode: diagnosticMode }
     api
       .runAgentWs(patient.patient_id || 'demo', payload, (event) => {
         setEvents((prev) => [...prev, event])
@@ -71,7 +87,10 @@ export function DiagnosticsTab({ patient }: { patient: PatientData }) {
           setRunning(false)
         }
       })
-      .then(() => setRunning(false))
+      .then(terminal => {
+        setRunning(false)
+        if (!terminal) setLoadError('The analysis connection closed before completion. Run again to create a complete review.')
+      })
       .catch(() => { setRunning(false); setLoadError('Analysis could not complete. Please try again.') })
   }
 
@@ -89,6 +108,18 @@ export function DiagnosticsTab({ patient }: { patient: PatientData }) {
         catch { setLoadError('Could not open this analysis.') } finally { setLoading(false) }
       }}><option value="" disabled>Select an analysis</option>{savedRuns.map(item => <option key={item.id} value={item.id}>{new Date(item.created_at).toLocaleString()} · {item.status.replaceAll('_', ' ')}</option>)}</select></label>}
       {loading && <p role="status" className="text-muted">Loading saved analysis…</p>}
+      <fieldset disabled={running} className="space-y-3">
+        <legend className="font-medium">Diagnostic review for the next analysis</legend>
+        <label className="flex items-start gap-3 text-sm leading-6">
+          <input className="mt-1 accent-accent" type="radio" name="diagnostic-mode" value="standard" checked={diagnosticMode === 'standard'} onChange={() => setDiagnosticMode('standard')} />
+          <span><span className="block font-medium">Standard</span><span className="text-muted">One diagnostic assessment alongside medication checks and calculators.</span></span>
+        </label>
+        <label className="flex items-start gap-3 text-sm leading-6">
+          <input className="mt-1 accent-accent" type="radio" name="diagnostic-mode" value="extended" checked={diagnosticMode === 'extended'} disabled={!extendedEnabled} aria-describedby="extended-review-help" onChange={() => setDiagnosticMode('extended')} />
+          <span><span className="block font-medium">Extended</span><span id="extended-review-help" className="text-muted">Two independent assessments, a critique, and a synthesis. Adds model calls and may take longer. Suggestions require review.</span></span>
+        </label>
+        {!extendedEnabled && <p className="text-sm text-muted">{capabilityError ? 'Extended review availability could not be checked. Reload to try again; standard analysis is available.' : 'Extended review is not enabled on this server.'}</p>}
+      </fieldset>
       {!started && !loading && (
         <div className="panel analysis-intro">
           <Icon name="analysis" />
@@ -131,6 +162,7 @@ export function DiagnosticsTab({ patient }: { patient: PatientData }) {
       )}
 
       {!reviewRun && interactionsEvent && <InteractionsPanel event={interactionsEvent} />}
+      {diagnosticReview && <DiagnosticReviewPanel review={diagnosticReview} />}
       {!reviewRun && diagnosisEvent && <DiagnosesPanel event={diagnosisEvent} />}
       {!reviewRun && calcEvent && <CalculatorsPanel event={calcEvent} technical={technical} />}
       {!reviewRun && summaryEvent && <SummaryPanel event={summaryEvent} />}

@@ -75,6 +75,7 @@ export interface PatientData {
 }
 
 export interface AgentEvent {
+  diagnostic_mode?: 'standard' | 'extended'
   review_run?: ReviewRun
   node: string
   audit_entry?: string
@@ -83,6 +84,28 @@ export interface AgentEvent {
   diagnoses?: Record<string, unknown>
   calculator_results?: Array<Record<string, unknown>>
   final_summary?: ClinicalSummary
+}
+
+export interface DiagnosticReview {
+  mode: 'extended'
+  status: 'complete' | 'unavailable'
+  cached?: boolean
+  failure_code?: string
+  failed_stage?: string
+  disagreements: string[]
+  concerns?: string[]
+  missing_information: string[]
+  stages: {
+    stage: string
+    model: string
+    output: {
+      primary_diagnosis?: string
+      differential_notes?: string
+      concerns?: string[]
+      disagreements?: string[]
+      missing_information?: string[]
+    }
+  }[]
 }
 
 export interface AskEvent {
@@ -153,7 +176,11 @@ export interface ReviewClarification {
 export interface ReviewRun {
   kind?: 'analysis' | 'extraction'
   committed_fields?: number
-  analysis?: { source_name?: string; warnings?: string[]; scope?: string }
+  analysis?: {
+    source_name?: string; warnings?: string[]; scope?: string
+    diagnostic_mode?: 'standard' | 'extended'
+    diagnoses?: { _diagnostic_review?: DiagnosticReview }
+  }
   id: string
   patient_id: string
   created_at: string
